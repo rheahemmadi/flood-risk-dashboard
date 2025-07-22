@@ -1,0 +1,14 @@
+{
+  "name": "flood-risk-dashboard-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Flood Risk Dashboard",
+  "main": "index.js",
+  "scripts": {
+    "dev": "echo 'Backend not implemented yet'",
+    "start": "echo 'Backend not implemented yet'",
+    "build": "echo 'Backend not implemented yet'"
+  },
+  "keywords": ["flood", "risk", "dashboard", "api"],
+  "author": "",
+  "license": "MIT"
+} 
