@@ -55,7 +55,7 @@ const AlertInfoPanel = ({ alert, onClose }: AlertInfoPanelProps) => {
   };
 
   return (
-    <div className="absolute top-0 right-0 w-96 h-full bg-dashboard-panel border-l border-dashboard-border shadow-xl z-40 overflow-y-auto">
+    <div className="absolute top-0 right-0 w-full sm:w-96 h-full bg-dashboard-panel border-l border-dashboard-border shadow-xl z-40 overflow-y-auto">
       <Card className="h-full rounded-none border-none">
         <CardHeader className="pb-4 bg-ifrc-red-light/10 border-b border-dashboard-border">
           <div className="flex items-center justify-between">
@@ -69,23 +69,23 @@ const AlertInfoPanel = ({ alert, onClose }: AlertInfoPanelProps) => {
           </div>
         </CardHeader>
         
-        <CardContent className="space-y-6 p-6">
+        <CardContent className="space-y-6 p-4 sm:p-6">
           {/* Alert Summary Card */}
           <div className="bg-card border border-dashboard-border rounded-lg p-4">
             <div className="flex items-start justify-between mb-3">
-              <div>
+              <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-base text-foreground mb-1">Affected Area</h3>
-                <p className="font-semibold text-lg">{alert.location}</p>
+                <p className="font-semibold text-lg truncate">{alert.location}</p>
                 {alert.riverName && (
                   <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-                    <Droplets className="h-3 w-3" />
-                    {alert.riverName}
+                    <Droplets className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">{alert.riverName}</span>
                   </p>
                 )}
               </div>
               <Badge 
                 variant="secondary" 
-                className={`px-3 py-1 font-bold text-xs ${
+                className={`px-3 py-1 font-bold text-xs ml-2 flex-shrink-0 ${
                   alert.riskLevel === 'high' ? 'bg-status-critical text-white' :
                   alert.riskLevel === 'medium' ? 'bg-status-medium text-white' :
                   'bg-status-low text-white'
@@ -97,7 +97,7 @@ const AlertInfoPanel = ({ alert, onClose }: AlertInfoPanelProps) => {
           </div>
 
           {/* Emergency Status */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-card border border-dashboard-border rounded-lg p-4">
               <h4 className="font-semibold text-xs text-muted-foreground mb-2 uppercase tracking-wider">Return Period</h4>
               <div className="flex items-center gap-2">
@@ -122,11 +122,11 @@ const AlertInfoPanel = ({ alert, onClose }: AlertInfoPanelProps) => {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Coordinates:</span>
-                <span className="font-mono">{alert.latitude.toFixed(4)}, {alert.longitude.toFixed(4)}</span>
+                <span className="font-mono text-xs sm:text-sm">{alert.latitude.toFixed(4)}, {alert.longitude.toFixed(4)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Forecast Date:</span>
-                <span>{new Date(alert.date).toLocaleDateString('en-US', { 
+                <span className="text-xs sm:text-sm">{new Date(alert.date).toLocaleDateString('en-US', { 
                   month: 'short', 
                   day: 'numeric',
                   year: 'numeric'
@@ -148,7 +148,7 @@ const AlertInfoPanel = ({ alert, onClose }: AlertInfoPanelProps) => {
                     size="sm" 
                     onClick={generateAIInsight}
                     disabled={loadingInsight}
-                    className="bg-ifrc-red hover:bg-ifrc-red-dark text-white"
+                    className="bg-ifrc-red hover:bg-ifrc-red-dark text-white text-xs"
                   >
                     {loadingInsight ? 'Analyzing...' : 'Generate Analysis'}
                   </Button>
