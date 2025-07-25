@@ -176,3 +176,4 @@ All colors MUST be HSL.
     @apply bg-card text-card-foreground border border-border rounded-lg shadow-sm;
   }
 }
+@import 'mapbox-gl/dist/mapbox-gl.css';
