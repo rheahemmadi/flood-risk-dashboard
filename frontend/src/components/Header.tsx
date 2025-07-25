@@ -1,23 +1,25 @@
 'use client';
 
+import Link from 'next/link';
+
 interface HeaderProps {
   currentPage?: string;
 }
 
 export function Header({ currentPage = 'home' }: HeaderProps) {
   return (
-               <header className="bg-white shadow-sm border-b border-red-600">
-             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-               <div className="flex justify-between items-center py-4">
-                 <div className="flex items-center">
-                   <div className="flex-shrink-0">
-                     <h1 className="text-2xl font-bold text-gray-900">
-                       The Alert Engine
-                     </h1>
-                   </div>
+    <header className="bg-white shadow-sm border-b border-red-600">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center py-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <h1 className="text-2xl font-bold text-gray-900">
+                The Alert Engine
+              </h1>
+            </div>
           </div>
           <nav className="hidden md:flex space-x-8">
-            <a 
+            <Link 
               href="/" 
               className={`${
                 currentPage === 'home' 
@@ -26,8 +28,8 @@ export function Header({ currentPage = 'home' }: HeaderProps) {
               }`}
             >
               Home
-            </a>
-            <a 
+            </Link>
+            <Link 
               href="/map" 
               className={`${
                 currentPage === 'map' 
@@ -36,7 +38,7 @@ export function Header({ currentPage = 'home' }: HeaderProps) {
               }`}
             >
               Map Viewer
-            </a>
+            </Link>
           </nav>
         </div>
       </div>
