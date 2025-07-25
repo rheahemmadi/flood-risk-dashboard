@@ -50,8 +50,8 @@ const DashboardHeader = ({
               <Waves className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-foreground">Global Flood Alert Dashboard</h1>
-              <p className="text-xs text-muted-foreground font-medium">Emergency Response • Real-time GloFAS Monitoring</p>
+              <h1 className="text-lg font-bold text-foreground">The Alert Engine</h1>
+              <p className="text-xs text-muted-foreground font-medium">Emergency Response • Real-time flood forecasting</p>
             </div>
           </div>
         </div>
@@ -146,8 +146,8 @@ const DashboardHeader = ({
             <Waves className="h-7 w-7 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Global Flood Alert Dashboard</h1>
-            <p className="text-sm text-muted-foreground font-medium">Emergency Response • Real-time GloFAS Monitoring</p>
+            <h1 className="text-2xl font-bold text-foreground">The Alert Engine</h1>
+            <p className="text-sm text-muted-foreground font-medium">Emergency Response • Real-time flood forecasting</p>
           </div>
         </div>
 

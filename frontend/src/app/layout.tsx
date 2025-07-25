@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Global Flood Alert Dashboard",
-  description: "Emergency Response • Real-time GloFAS Monitoring",
+  title: "The Alert Engine",
+  description: "Emergency Response • Real-time flood forecasting",
 };
 
 export default function RootLayout({
