@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Map, { Marker, Popup, NavigationControl, FullscreenControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { FloodAlert } from '@/lib/types/flood';
@@ -17,6 +17,12 @@ interface FloodMapProps {
 const FloodMap = ({ alerts, onAlertClick, selectedDate, riskFilter }: FloodMapProps) => {
   const [popupInfo, setPopupInfo] = useState<FloodAlert | null>(null);
   const [viewState, setViewState] = useState(MAPBOX_CONFIG.defaultViewport);
+  const [isClient, setIsClient] = useState(false);
+
+  // Ensure component is mounted on client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Filter alerts based on selected filters
   const filteredAlerts = alerts.filter(alert => 
@@ -54,6 +60,18 @@ const FloodMap = ({ alerts, onAlertClick, selectedDate, riskFilter }: FloodMapPr
               3. Add: <code className="bg-gray-100 px-1 rounded">NEXT_PUBLIC_MAPBOX_TOKEN=your_token_here</code>
             </p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render map until client-side
+  if (!isClient) {
+    return (
+      <div className="relative w-full h-full bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ifrc-red mx-auto mb-2"></div>
+          <p className="text-sm text-gray-600">Loading map...</p>
         </div>
       </div>
     );
