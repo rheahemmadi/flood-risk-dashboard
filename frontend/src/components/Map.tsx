@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import MapSearch from './MapSearch';
+import { SearchSuggestion } from '@/lib/utils/search';
 
 interface MapProps {
   className?: string;
+  searchQuery?: string;
 }
 
 // Sample flood risk data
@@ -47,14 +50,25 @@ const getRiskColor = (riskLevel: string) => {
   }
 };
 
-export function Map({ className = '' }: MapProps) {
+export function Map({ className = '', searchQuery }: MapProps) {
   const [selectedLocation, setSelectedLocation] = useState<typeof floodRiskData[0] | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const handleLocationSelect = (suggestion: SearchSuggestion) => {
+    // For the OpenStreetMap iframe, we'll update the URL to center on the selected location
+    if (iframeRef.current) {
+      const [lng, lat] = suggestion.center;
+      const newUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${lng-0.1},${lat-0.1},${lng+0.1},${lat+0.1}&layer=mapnik&marker=${lat},${lng}&zoom=10&center=${lat},${lng}`;
+      iframeRef.current.src = newUrl;
+    }
+  };
 
   return (
     <div className={className}>
       <div className="relative w-full h-full rounded-lg border border-gray-200 overflow-hidden">
         {/* OpenStreetMap iframe */}
         <iframe
+          ref={iframeRef}
           src="https://www.openstreetmap.org/export/embed.html?bbox=-2.5,51.0,1.5,54.0&layer=mapnik&marker=52.3555,-1.1743&zoom=7&center=52.3555,-1.1743"
           width="100%"
           height="100%"

@@ -1,14 +1,16 @@
 'use client'
 
 import React from 'react';
-import { Search, Calendar, Waves, Menu } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Calendar, Waves } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import MapSearch from './MapSearch';
+import { SearchSuggestion } from '@/lib/utils/search';
 
 interface DashboardHeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  onLocationSelect?: (suggestion: SearchSuggestion) => void;
   selectedDate: string;
   onDateChange: (date: string) => void;
   availableDates: string[];
@@ -24,6 +26,7 @@ interface DashboardHeaderProps {
 const DashboardHeader = ({
   searchQuery,
   onSearchChange,
+  onLocationSelect,
   selectedDate,
   onDateChange,
   availableDates,
@@ -42,7 +45,7 @@ const DashboardHeader = ({
   return (
     <header className="bg-dashboard-nav text-dashboard-nav-foreground shadow-md border-b border-dashboard-border">
       {/* Mobile Layout */}
-      <div className="lg:hidden">
+      <div className="xl:hidden">
         <div className="flex items-center justify-between px-4 py-3">
           {/* Logo and Title */}
           <div className="flex items-center gap-3">
@@ -60,12 +63,12 @@ const DashboardHeader = ({
         <div className="px-4 pb-3 space-y-3">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search affected regions..."
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-10 w-full bg-card border-dashboard-border"
+            <MapSearch
+              onLocationSelect={onLocationSelect || (() => {})}
+              placeholder="Search locations worldwide..."
+              className="w-full"
+              initialValue={searchQuery}
+              onSearchChange={onSearchChange}
             />
           </div>
 
@@ -139,7 +142,7 @@ const DashboardHeader = ({
       </div>
 
       {/* Desktop Layout */}
-      <div className="hidden lg:flex items-center px-6 py-3">
+      <div className="hidden xl:flex items-center px-6 py-3">
         {/* Logo and Title */}
         <div className="flex items-center gap-4 flex-shrink-0">
           <div className="bg-ifrc-red p-2.5 rounded-lg shadow-sm">
@@ -155,12 +158,12 @@ const DashboardHeader = ({
         <div className="flex items-center gap-4 mx-auto">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search affected regions..."
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-10 w-72 bg-card border-dashboard-border"
+            <MapSearch
+              onLocationSelect={onLocationSelect || (() => {})}
+              placeholder="Search locations worldwide..."
+              className="w-72"
+              initialValue={searchQuery}
+              onSearchChange={onSearchChange}
             />
           </div>
 

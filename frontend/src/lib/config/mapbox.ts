@@ -6,11 +6,11 @@ export const MAPBOX_CONFIG = {
   // Default map style - changed to streets-v12 (default)
   mapStyle: 'mapbox://styles/mapbox/streets-v12',
   
-  // Default viewport - focused on UK
+  // Default viewport - focused on Northern Europe (where your flood data is located)
   defaultViewport: {
-    latitude: 54.0,  // UK center latitude
-    longitude: -2.0, // UK center longitude
-    zoom: 5          // Closer zoom to show UK clearly
+    latitude: 70.5,  // Northern Europe center latitude (Norway/Sweden/Finland area)
+    longitude: 26.0, // Northern Europe center longitude
+    zoom: 4          // Zoom to show the region clearly
   },
   
   // Map options
@@ -40,12 +40,26 @@ export const getMarkerColor = (riskLevel: string): string => {
 export const getMarkerSize = (riskLevel: string): number => {
   switch (riskLevel) {
     case 'high':
-      return 12; // Larger for critical alerts
+      return 20; // Much larger for 5km areas
     case 'medium':
-      return 10; // Medium size
+      return 16; // Larger for medium risk
     case 'low':
-      return 8; // Smaller for low risk
+      return 12; // Larger for low risk
     default:
-      return 8;
+      return 12;
+  }
+};
+
+// Helper function to get flood point marker size (for 5km areas)
+export const getFloodPointSize = (riskLevel: string): number => {
+  switch (riskLevel) {
+    case 'high':
+      return 24; // Very large for high risk 5km areas
+    case 'medium':
+      return 20; // Large for medium risk
+    case 'low':
+      return 16; // Medium for low risk
+    default:
+      return 16;
   }
 };

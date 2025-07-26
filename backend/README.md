@@ -1,34 +1,26 @@
-# Backend API
+# Flood Risk Dashboard Backend
 
-This directory will contain the backend API for the Flood Risk Dashboard.
+This is the Python backend for the Flood Risk Dashboard project. It provides a simple web server and MongoDB integration for storing and retrieving flood risk data.
 
-## Planned Features
+## Structure
+- `main.py`: Entry point for the FastAPI web server
+- `config/`: Configuration files (e.g., database connection)
+- `schemas/`: Pydantic models for MongoDB collections
 
-- GloFAS data integration
-- Google Flood Hub API integration
-- OpenAI API integration for AI insights
-- Data processing and analysis
-- Real-time data updates
+## Setup
+1. Create a virtual environment:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Run the server:
+   ```bash
+   uvicorn main:app --reload
+   ```
 
-## Tech Stack Options
-
-- **Node.js + Express**: Simple and fast development
-- **Python + FastAPI**: Great for data processing and ML
-- **Go + Gin**: High performance for real-time data
-
-## Implementation Timeline
-
-1. Set up basic API structure
-2. Implement GloFAS data fetching
-3. Add Google Flood Hub integration
-4. Integrate OpenAI for AI insights
-5. Add real-time data streaming
-
-## Getting Started
-
-```bash
-# When backend is implemented
-cd backend
-npm install
-npm run dev
-``` 
+## MongoDB
+- Configure your MongoDB URI in `config/database.py`. 
