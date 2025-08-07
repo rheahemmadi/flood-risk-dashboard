@@ -6,6 +6,7 @@ export interface FloodPoint {
   lat: number;
   lon: number;
   forecast_value: number;
+  return_period: string;
 }
 
 export interface FloodCluster {

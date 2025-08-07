@@ -450,8 +450,16 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
 
         {/* Flood Alert Markers - Show individual points when zoomed in (no clusters) */}
         {viewState.zoom > 8 && viewportFloodPoints.map((point) => {
-          const riskLevel = point.forecast_value >= 5.0 ? 'high' : 
-                           point.forecast_value >= 2.0 ? 'medium' : 'low';
+           let riskLevel: 'high' | 'medium' | 'low' = 'low';
+           if (point.return_period === '20-year') {
+             riskLevel = 'high';
+           } else if (point.return_period === '5-year') {
+             riskLevel = 'medium';
+           } else if (point.return_period === '2-year') {
+             riskLevel = 'low';
+           }
+          // const riskLevel = point.forecast_value >= 5.0 ? 'high' : 
+          //                  point.forecast_value >= 2.0 ? 'medium' : 'low';
           return (
             <Marker
               key={point.id}

@@ -68,7 +68,8 @@ async def get_flood_points(
                 'time': point.time,
                 'lat': point.lat,
                 'lon': point.lon,
-                'forecast_value': point.forecast_value
+                'forecast_value': point.forecast_value,
+                'return_period': point.return_period
             })
         
         # Get total count for pagination info
@@ -232,13 +233,22 @@ async def generate_clusters_endpoint(
 async def get_flood_points_summary():
     """Get summary statistics for the GLOBAL flood points."""
     try:
-        # We now query the SignificantFloodPoint model, which is populated by the pipeline
         total_count = SignificantFloodPoint.objects.count()
         unique_dates = SignificantFloodPoint.objects.distinct('time')
         
+        # --- NEW: Aggregation pipeline to count by return_period ---
+        pipeline = [
+            {"$group": {"_id": "$return_period", "count": {"$sum": 1}}}
+        ]
+        risk_breakdown_raw = list(SignificantFloodPoint.objects.aggregate(pipeline))
+        
+        # Convert the result into a simple dictionary
+        risk_breakdown = {item['_id']: item['count'] for item in risk_breakdown_raw}
+
         return {
             "total_points": total_count,
             "unique_dates": sorted(unique_dates),
+            "risk_breakdown": risk_breakdown # e.g., {"20-year": 123, "5-year": 456}
         }
     except Exception as e:
         return {"error": str(e)}
