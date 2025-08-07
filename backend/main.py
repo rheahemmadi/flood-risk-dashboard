@@ -230,24 +230,38 @@ async def generate_clusters_endpoint(
 
 @app.get("/api/flood-points/summary")
 async def get_flood_points_summary():
-    """Get summary statistics for flood points"""
+    """Get summary statistics for the GLOBAL flood points."""
     try:
+        # We now query the SignificantFloodPoint model, which is populated by the pipeline
         total_count = SignificantFloodPoint.objects.count()
-        
-        # Get min/max forecast values
-        min_forecast = SignificantFloodPoint.objects.order_by('forecast_value').first()
-        max_forecast = SignificantFloodPoint.objects.order_by('-forecast_value').first()
-        
-        # Get unique dates
         unique_dates = SignificantFloodPoint.objects.distinct('time')
         
         return {
             "total_points": total_count,
-            "min_forecast": min_forecast.forecast_value if min_forecast else 0,
-            "max_forecast": max_forecast.forecast_value if max_forecast else 0,
             "unique_dates": sorted(unique_dates),
-            "date_count": len(unique_dates)
         }
+    except Exception as e:
+        return {"error": str(e)}
+# @app.get("/api/flood-points/summary")
+# async def get_flood_points_summary():
+#     """Get summary statistics for flood points"""
+#     try:
+#         total_count = SignificantFloodPoint.objects.count()
+        
+#         # Get min/max forecast values
+#         min_forecast = SignificantFloodPoint.objects.order_by('forecast_value').first()
+#         max_forecast = SignificantFloodPoint.objects.order_by('-forecast_value').first()
+        
+#         # Get unique dates
+#         unique_dates = SignificantFloodPoint.objects.distinct('time')
+        
+#         return {
+#             "total_points": total_count,
+#             "min_forecast": min_forecast.forecast_value if min_forecast else 0,
+#             "max_forecast": max_forecast.forecast_value if max_forecast else 0,
+#             "unique_dates": sorted(unique_dates),
+#             "date_count": len(unique_dates)
+#         }
         
     except Exception as e:
         return {"error": str(e)}

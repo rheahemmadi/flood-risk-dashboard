@@ -384,22 +384,42 @@ export const getAvailableDates = async (): Promise<string[]> => {
 };
 
 // Get alert counts for a specific date (cached)
+// Get alert counts for a specific date (cached)
 export const getAlertCounts = async (selectedDate: string) => {
   return cachedFetch(
-    floodDataCache,
+    summaryCache, // Use the separate summaryCache
     'getAlertCounts',
-    { selectedDate },
+    { selectedDate }, // Cache key
     async () => {
-      const points = await fetchFloodPointsByDate(selectedDate);
+      // Fetch the true summary from the backend
+      const summary = await FloodService.getFloodPointsSummary();
       
+      // For now, we'll put the total count in the 'high' category
+      // This is much faster than fetching and filtering on the frontend
       return {
-        high: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'high').length,
-        medium: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'medium').length,
-        low: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'low').length
+        high: summary?.total_points || 0,
+        medium: 0,
+        low: 0,
       };
     }
   );
 };
+// export const getAlertCounts = async (selectedDate: string) => {
+//   return cachedFetch(
+//     floodDataCache,
+//     'getAlertCounts',
+//     { selectedDate },
+//     async () => {
+//       const points = await fetchFloodPointsByDate(selectedDate);
+      
+//       return {
+//         high: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'high').length,
+//         medium: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'medium').length,
+//         low: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'low').length
+//       };
+//     }
+//   );
+// };
 
 // Cache management utilities
 export const cacheUtils = {
