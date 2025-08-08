@@ -121,80 +121,56 @@ class GeohashClusteringService:
         else:
             return 'extreme'
     
-    def cluster_points_by_zoom(self, zoom_level: int, time: str = None, parent_geohash: str = None) -> List[FloodCluster]:
-        """Cluster points for a specific zoom level and time, optionally within parent bounds"""
-        # Get all points for the time period
+# In the GeohashClusteringService class
+    
+    def cluster_points_by_zoom(self, zoom_level: int, time: str = None) -> List[FloodCluster]:
+        """Cluster points for a specific zoom level and time (valid_for_date)."""
         query = {}
+        # --- KEY CHANGE #1: Query by the new 'valid_for_date' field ---
         if time:
-            query['time'] = time
-        
-        # If parent_geohash is provided, filter points to only those within parent bounds
-        if parent_geohash:
-            parent_bounds = self.decode_geohash_bounds(parent_geohash)
-            query['lat__gte'] = parent_bounds['south']
-            query['lat__lte'] = parent_bounds['north']
-            query['lon__gte'] = parent_bounds['west']
-            query['lon__lte'] = parent_bounds['east']
-        
+            query['valid_for_date'] = time
+
+        # Use the correct model (SignificantFloodPoint)
         points = SignificantFloodPoint.objects(**query)
         
-        # Group points by geohash prefix
         clusters = {}
-        
         for point in points:
             geohash_prefix = self.get_geohash_prefix(point.lat, point.lon, zoom_level)
             
-            # If we have a parent geohash, only include points whose geohash starts with it
-            if parent_geohash and not geohash_prefix.startswith(parent_geohash):
-                continue
-            
             if geohash_prefix not in clusters:
                 clusters[geohash_prefix] = {
-                    'points': [],
-                    'lats': [],
-                    'lons': [],
-                    'forecast_values': []
+                    'points': [], 'lats': [], 'lons': [], 
+                    'forecast_values': [], 'return_periods': []
                 }
-            
+
             clusters[geohash_prefix]['points'].append(point)
             clusters[geohash_prefix]['lats'].append(point.lat)
             clusters[geohash_prefix]['lons'].append(point.lon)
             clusters[geohash_prefix]['forecast_values'].append(point.forecast_value)
+            clusters[geohash_prefix]['return_periods'].append(point.return_period)
         
-        # Create FloodCluster objects
         flood_clusters = []
         for geohash_prefix, cluster_data in clusters.items():
             points = cluster_data['points']
-            lats = cluster_data['lats']
-            lons = cluster_data['lons']
-            forecast_values = cluster_data['forecast_values']
+            # ... (calculations for center_lat, center_lon, avg_forecast, etc. remain the same)
+            lats, lons, forecast_values = cluster_data['lats'], cluster_data['lons'], cluster_data['forecast_values']
+            center_lat, center_lon = sum(lats) / len(lats), sum(lons) / len(lons)
+            avg_forecast, max_forecast, min_forecast = sum(forecast_values) / len(forecast_values), max(forecast_values), min(forecast_values)
             
-            # Calculate cluster center
-            center_lat = sum(lats) / len(lats)
-            center_lon = sum(lons) / len(lons)
-            
-            # Calculate statistics
-            avg_forecast = sum(forecast_values) / len(forecast_values)
-            max_forecast = max(forecast_values)
-            min_forecast = min(forecast_values)
-            
-            # Determine risk level based on max forecast value
-            risk_level = self.determine_risk_level(max_forecast)
-            
-            # Create cluster object
+            return_periods = cluster_data['return_periods']
+            risk_level = 'low'
+            if '20-year' in return_periods: risk_level = 'high'
+            elif '5-year' in return_periods: risk_level = 'medium'
+
             cluster = FloodCluster(
-                zoom_level=zoom_level,
-                geohash=geohash_prefix,
-                center_lat=center_lat,
-                center_lon=center_lon,
-                time=points[0].time,
-                point_count=len(points),
-                avg_forecast=avg_forecast,
-                max_forecast=max_forecast,
-                min_forecast=min_forecast,
+                zoom_level=zoom_level, geohash=geohash_prefix,
+                center_lat=center_lat, center_lon=center_lon,
+                # --- KEY CHANGE #2: Assign the date to the cluster's time field ---
+                time=time, 
+                point_count=len(lats), avg_forecast=avg_forecast,
+                max_forecast=max_forecast, min_forecast=min_forecast,
                 risk_level=risk_level
             )
-            
             flood_clusters.append(cluster)
         
         return flood_clusters

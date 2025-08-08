@@ -43,12 +43,17 @@ export interface FloodClustersResponse {
   };
 }
 
+
 export interface FloodPointsSummary {
-  total_points: number;
-  min_forecast: number;
-  max_forecast: number;
+  // These can be removed if you don't use them, or kept if you might later
+  // total_points: number;
+  // min_forecast: number;
+  // max_forecast: number;
+  // date_count: number;
+  
+  // These are the keys the new backend code returns
   unique_dates: string[];
-  date_count: number;
+  risk_breakdown: Record<string, number>; 
 }
 
 export interface FloodClustersSummary {

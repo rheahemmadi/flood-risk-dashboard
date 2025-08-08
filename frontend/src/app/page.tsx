@@ -5,13 +5,18 @@ import FloodMap from '@/components/FloodMap';
 import DashboardHeader from '@/components/DashboardHeader';
 import AlertInfoPanel from '@/components/AlertInfoPanel';
 import { FloodAlert } from '@/lib/types/flood';
-import { 
-  fetchFloodPoints, 
-  fetchFloodPointsByDate, 
-  getAvailableDates, 
-  getAlertCounts 
-} from '@/lib/data/floodData';
 import { SearchSuggestion, flyToLocation } from '@/lib/utils/search';
+
+// CHANGE: Import the FloodService directly.
+import { FloodService } from '@/lib/services/floodService';
+
+// CHANGE: The old helper functions from floodData are no longer needed.
+// import { 
+//   fetchFloodPoints, 
+//   fetchFloodPointsByDate, 
+//   getAvailableDates, 
+//   getAlertCounts 
+// } from '@/lib/data/floodData';
 
 const Index = () => {
   const [selectedAlert, setSelectedAlert] = useState<FloodAlert | null>(null);
@@ -19,97 +24,47 @@ const Index = () => {
   const [selectedDate, setSelectedDate] = useState('');
   const [riskFilter, setRiskFilter] = useState<string[]>(['high', 'medium', 'low']);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
-  const [floodPoints, setFloodPoints] = useState<any[]>([]);
-  const [alerts, setAlerts] = useState<FloodAlert[]>([]);
   const [alertCounts, setAlertCounts] = useState({ high: 0, medium: 0, low: 0 });
   const [loading, setLoading] = useState(true);
   const mapRef = useRef<any>(null);
 
-  // Load initial data
+  // CHANGE: This single useEffect now handles all initial data loading.
+  // It makes one efficient call to the backend summary endpoint.
   useEffect(() => {
     const loadInitialData = async () => {
       try {
         setLoading(true);
         
-        // Get available dates
-        const dates = await getAvailableDates();
-        setAvailableDates(dates);
+        // Fetch ALL summary data (dates and counts) in one go.
+        const summary = await FloodService.getFloodPointsSummary();
         
+        const dates = summary.unique_dates || [];
+        const counts = summary.risk_breakdown || { high: 0, medium: 0, low: 0 };
+        
+        // Set the state for the header components
+        setAvailableDates(dates);
+        setAlertCounts(counts);
+        
+        // Automatically select the first available date
         if (dates.length > 0) {
           setSelectedDate(dates[0]);
-          
-          // Load flood points and alerts for the first date
-          const points = await fetchFloodPoints(1000);
-          setFloodPoints(points);
-          
-          const datePoints = await fetchFloodPointsByDate(dates[0], 1000);
-          const dateAlerts: FloodAlert[] = datePoints.map((point, index) => ({
-            id: `alert-${index}`,
-            latitude: point.latitude,
-            longitude: point.longitude,
-            location: point.riverName || 'Flood Alert',
-            riskLevel: point.riskLevel,
-            returnPeriod: `${Math.floor(Math.random() * 50) + 5}-year return period`,
-            trend: ['rising', 'falling', 'stable'][Math.floor(Math.random() * 3)] as 'rising' | 'falling' | 'stable',
-            date: dates[0],
-            riverName: point.riverName,
-            description: `Flood risk alert for ${point.riverName || 'this area'}`
-          }));
-          setAlerts(dateAlerts);
-          
-          // Get alert counts
-          const counts = await getAlertCounts(dates[0]);
-          setAlertCounts(counts);
         }
       } catch (error) {
-        console.error('Error loading initial data:', error);
+        console.error('Error loading summary data:', error);
+        // In case of an error, set empty state to prevent crashes
+        setAvailableDates([]);
+        setAlertCounts({ high: 0, medium: 0, low: 0 });
       } finally {
         setLoading(false);
       }
     };
 
     loadInitialData();
-  }, []);
+  }, []); // The empty array [] ensures this runs only once when the page loads.
 
-  // Load data when selected date changes
-  useEffect(() => {
-    if (selectedDate) {
-      const loadDateData = async () => {
-        try {
-          const datePoints = await fetchFloodPointsByDate(selectedDate, 1000);
-          const dateAlerts: FloodAlert[] = datePoints.map((point, index) => ({
-            id: `alert-${index}`,
-            latitude: point.latitude,
-            longitude: point.longitude,
-            location: point.riverName || 'Flood Alert',
-            riskLevel: point.riskLevel,
-            returnPeriod: `${Math.floor(Math.random() * 50) + 5}-year return period`,
-            trend: ['rising', 'falling', 'stable'][Math.floor(Math.random() * 3)] as 'rising' | 'falling' | 'stable',
-            date: selectedDate,
-            riverName: point.riverName,
-            description: `Flood risk alert for ${point.riverName || 'this area'}`
-          }));
-          setAlerts(dateAlerts);
-          
-          const counts = await getAlertCounts(selectedDate);
-          setAlertCounts(counts);
-        } catch (error) {
-          console.error('Error loading date data:', error);
-        }
-      };
-
-      loadDateData();
-    }
-  }, [selectedDate]);
-
-  // Filter alerts based on search query
-  const filteredAlerts = useMemo(() => {
-    if (!searchQuery) return alerts;
-    return alerts.filter(alert =>
-      alert.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (alert.riverName && alert.riverName.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }, [searchQuery, alerts]);
+  // CHANGE: The other useEffect hooks that fetched data are no longer needed
+  // because the FloodMap component now handles its own data fetching based on
+  // the 'selectedDate' and 'riskFilter' props passed to it.
 
   const handleAlertClick = (alert: FloodAlert) => {
     setSelectedAlert(alert);
@@ -128,7 +83,7 @@ const Index = () => {
       <div className="h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading flood data...</p>
+          <p className="text-muted-foreground">Loading dashboard data...</p>
         </div>
       </div>
     );
@@ -136,7 +91,7 @@ const Index = () => {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Header */}
+      {/* Header receives the data fetched above */}
       <DashboardHeader
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -151,19 +106,19 @@ const Index = () => {
 
       {/* Main Content */}
       <div className="flex-1 relative">
-        {/* Map */}
+        {/* CHANGE: The FloodMap component is now self-sufficient. 
+          It only needs the selectedDate and riskFilter to fetch its own map points and clusters.
+          We no longer need to pass down 'alerts' or 'floodPoints' from here.
+        */}
         <FloodMap
           ref={mapRef}
-          alerts={filteredAlerts}
+          alerts={[]} // The map component will handle its own popups from fetched data
           onAlertClick={handleAlertClick}
           selectedDate={selectedDate}
           riskFilter={riskFilter}
-          searchQuery={searchQuery}
-          floodPoints={floodPoints}
-          floodSegments={[]}
         />
 
-        {/* Info Panel */}
+        {/* Info Panel logic remains the same */}
         {selectedAlert && (
           <AlertInfoPanel
             alert={selectedAlert}
