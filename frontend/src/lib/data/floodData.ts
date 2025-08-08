@@ -386,20 +386,39 @@ export const getAvailableDates = async (): Promise<string[]> => {
 // Get alert counts for a specific date (cached)
 export const getAlertCounts = async (selectedDate: string) => {
   return cachedFetch(
-    floodDataCache,
+    summaryCache, // Use the separate summaryCache
     'getAlertCounts',
-    { selectedDate },
+    { selectedDate }, // Cache key
     async () => {
-      const points = await fetchFloodPointsByDate(selectedDate);
-      
+      // Fetch the true summary from the backend
+      const summary = await FloodService.getFloodPointsSummary();
+      const breakdown = summary?.risk_breakdown || {};
+
+      // --- NEW: Map the return periods to risk levels ---
       return {
-        high: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'high').length,
-        medium: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'medium').length,
-        low: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'low').length
+        high: breakdown['20-year'] || 0,
+        medium: breakdown['5-year'] || 0,
+        low: breakdown['2-year'] || 0,
       };
     }
   );
 };
+// export const getAlertCounts = async (selectedDate: string) => {
+//   return cachedFetch(
+//     floodDataCache,
+//     'getAlertCounts',
+//     { selectedDate },
+//     async () => {
+//       const points = await fetchFloodPointsByDate(selectedDate);
+      
+//       return {
+//         high: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'high').length,
+//         medium: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'medium').length,
+//         low: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'low').length
+//       };
+//     }
+//   );
+// };
 
 // Cache management utilities
 export const cacheUtils = {

@@ -68,7 +68,8 @@ async def get_flood_points(
                 'time': point.time,
                 'lat': point.lat,
                 'lon': point.lon,
-                'forecast_value': point.forecast_value
+                'forecast_value': point.forecast_value,
+                'return_period': point.return_period
             })
         
         # Get total count for pagination info
@@ -230,24 +231,47 @@ async def generate_clusters_endpoint(
 
 @app.get("/api/flood-points/summary")
 async def get_flood_points_summary():
-    """Get summary statistics for flood points"""
+    """Get summary statistics for the GLOBAL flood points."""
     try:
         total_count = SignificantFloodPoint.objects.count()
-        
-        # Get min/max forecast values
-        min_forecast = SignificantFloodPoint.objects.order_by('forecast_value').first()
-        max_forecast = SignificantFloodPoint.objects.order_by('-forecast_value').first()
-        
-        # Get unique dates
         unique_dates = SignificantFloodPoint.objects.distinct('time')
         
+        # --- NEW: Aggregation pipeline to count by return_period ---
+        pipeline = [
+            {"$group": {"_id": "$return_period", "count": {"$sum": 1}}}
+        ]
+        risk_breakdown_raw = list(SignificantFloodPoint.objects.aggregate(pipeline))
+        
+        # Convert the result into a simple dictionary
+        risk_breakdown = {item['_id']: item['count'] for item in risk_breakdown_raw}
+
         return {
             "total_points": total_count,
-            "min_forecast": min_forecast.forecast_value if min_forecast else 0,
-            "max_forecast": max_forecast.forecast_value if max_forecast else 0,
             "unique_dates": sorted(unique_dates),
-            "date_count": len(unique_dates)
+            "risk_breakdown": risk_breakdown # e.g., {"20-year": 123, "5-year": 456}
         }
+    except Exception as e:
+        return {"error": str(e)}
+# @app.get("/api/flood-points/summary")
+# async def get_flood_points_summary():
+#     """Get summary statistics for flood points"""
+#     try:
+#         total_count = SignificantFloodPoint.objects.count()
+        
+#         # Get min/max forecast values
+#         min_forecast = SignificantFloodPoint.objects.order_by('forecast_value').first()
+#         max_forecast = SignificantFloodPoint.objects.order_by('-forecast_value').first()
+        
+#         # Get unique dates
+#         unique_dates = SignificantFloodPoint.objects.distinct('time')
+        
+#         return {
+#             "total_points": total_count,
+#             "min_forecast": min_forecast.forecast_value if min_forecast else 0,
+#             "max_forecast": max_forecast.forecast_value if max_forecast else 0,
+#             "unique_dates": sorted(unique_dates),
+#             "date_count": len(unique_dates)
+#         }
         
     except Exception as e:
         return {"error": str(e)}

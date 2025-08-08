@@ -227,63 +227,108 @@ class GeohashClusteringService:
         return result
 
     def generate_all_zoom_clusters(self, time: str = None):
-        """Generate clusters for all zoom levels hierarchically"""
-        print(f"Generating hierarchical clusters for time: {time or 'all times'}")
+        """
+        Generates clusters for all zoom levels. If a time is specified, it runs for that
+        day only. If no time is specified, it finds all unique dates in the data
+        and generates clusters for each of them.
+        """
+        print("--- Starting Cluster Generation ---")
         
-        # Clear existing clusters
+        # Clear all existing clusters before starting
         FloodCluster.objects.delete()
-        print("Cleared existing clusters")
-        
-        # Start with zoom level 0 - process all points
-        print("Processing zoom level 0...")
-        current_level_clusters = self.cluster_points_by_zoom(0, time)
-        
-        if current_level_clusters:
-            FloodCluster.objects.insert(current_level_clusters)
-            print(f"Created {len(current_level_clusters)} clusters for zoom level 0")
+        print("✅ Cleared all existing clusters.")
+
+        # Determine which dates to process
+        if time:
+            dates_to_process = [time]
+            print(f"Targeting single date: {time}")
         else:
-            print("No clusters created for zoom level 0")
-            return
-        
-        # For each subsequent zoom level, generate sub-clusters from the previous level
-        for zoom_level in range(1, 21):  # 1-20
-            print(f"Processing zoom level {zoom_level}...")
+            print("Finding all unique dates in the source data...")
+            # This fetches every unique 'time' value from your raw data
+            dates_to_process = SignificantFloodPoint.objects.distinct('time')
+            print(f"✅ Found {len(dates_to_process)} unique dates to process.")
+
+        # Loop through each date and generate clusters for it
+        for process_date in dates_to_process:
+            print(f"\n--- Processing date: {process_date} ---")
             
-            # Get all clusters from the previous zoom level
-            previous_level_clusters = FloodCluster.objects(zoom_level=zoom_level-1)
-            if time:
-                previous_level_clusters = previous_level_clusters.filter(time=time)
+            # Start with zoom level 0 for this specific date
+            clusters_for_date = self.cluster_points_by_zoom(0, time=process_date)
             
-            all_new_clusters = []
+            if not clusters_for_date:
+                print(f"No points found for {process_date}. Skipping.")
+                continue
+
+            # Hierarchically generate clusters for other zoom levels for this date
+            # (This part of your logic was specific to a single run, so we'll simplify)
+            for zoom_level in sorted(self.ZOOM_TO_PRECISION.keys()):
+                 print(f"   Processing zoom level {zoom_level} for {process_date}...")
+                 clusters_for_zoom = self.cluster_points_by_zoom(zoom_level, time=process_date)
+                 
+                 if clusters_for_zoom:
+                     FloodCluster.objects.insert(clusters_for_zoom)
+                     print(f"   ✅ Created {len(clusters_for_zoom)} clusters for zoom {zoom_level}")
+
+        print("\n🏁 Hierarchical cluster generation complete for all dates!")
+
+    # def generate_all_zoom_clusters(self, time: str = None):
+    #     """Generate clusters for all zoom levels hierarchically"""
+    #     print(f"Generating hierarchical clusters for time: {time or 'all times'}")
+        
+    #     # Clear existing clusters
+    #     FloodCluster.objects.delete()
+    #     print("Cleared existing clusters")
+        
+    #     # Start with zoom level 0 - process all points
+    #     print("Processing zoom level 0...")
+    #     current_level_clusters = self.cluster_points_by_zoom(0, time)
+        
+    #     if current_level_clusters:
+    #         FloodCluster.objects.insert(current_level_clusters)
+    #         print(f"Created {len(current_level_clusters)} clusters for zoom level 0")
+    #     else:
+    #         print("No clusters created for zoom level 0")
+    #         return
+        
+    #     # For each subsequent zoom level, generate sub-clusters from the previous level
+    #     for zoom_level in range(1, 21):  # 1-20
+    #         print(f"Processing zoom level {zoom_level}...")
             
-            # Generate sub-clusters for each parent cluster
-            for parent_cluster in previous_level_clusters:
-                sub_clusters = self.cluster_points_by_zoom(
-                    zoom_level, 
-                    time, 
-                    parent_geohash=parent_cluster.geohash
-                )
-                all_new_clusters.extend(sub_clusters)
+    #         # Get all clusters from the previous zoom level
+    #         previous_level_clusters = FloodCluster.objects(zoom_level=zoom_level-1)
+    #         if time:
+    #             previous_level_clusters = previous_level_clusters.filter(time=time)
             
-            if all_new_clusters:
-                FloodCluster.objects.insert(all_new_clusters)
-                print(f"Created {len(all_new_clusters)} clusters for zoom level {zoom_level}")
-            else:
-                print(f"No clusters created for zoom level {zoom_level}")
-                # If no clusters were created at this level, stop generating higher levels
-                break
+    #         all_new_clusters = []
+            
+    #         # Generate sub-clusters for each parent cluster
+    #         for parent_cluster in previous_level_clusters:
+    #             sub_clusters = self.cluster_points_by_zoom(
+    #                 zoom_level, 
+    #                 time, 
+    #                 parent_geohash=parent_cluster.geohash
+    #             )
+    #             all_new_clusters.extend(sub_clusters)
+            
+    #         if all_new_clusters:
+    #             FloodCluster.objects.insert(all_new_clusters)
+    #             print(f"Created {len(all_new_clusters)} clusters for zoom level {zoom_level}")
+    #         else:
+    #             print(f"No clusters created for zoom level {zoom_level}")
+    #             # If no clusters were created at this level, stop generating higher levels
+    #             break
         
-        print("Hierarchical cluster generation complete!")
+    #     print("Hierarchical cluster generation complete!")
         
-        # Print summary
-        total_clusters = FloodCluster.objects.count()
-        print(f"Total clusters in database: {total_clusters}")
+    #     # Print summary
+    #     total_clusters = FloodCluster.objects.count()
+    #     print(f"Total clusters in database: {total_clusters}")
         
-        # Print breakdown by zoom level
-        for zoom_level in range(21):
-            count = FloodCluster.objects(zoom_level=zoom_level).count()
-            if count > 0:
-                print(f"Zoom {zoom_level}: {count} clusters")
+    #     # Print breakdown by zoom level
+    #     for zoom_level in range(21):
+    #         count = FloodCluster.objects(zoom_level=zoom_level).count()
+    #         if count > 0:
+    #             print(f"Zoom {zoom_level}: {count} clusters")
     
     def get_clusters_for_viewport(self, zoom_level: int, bounds: Dict, time: str = None) -> List[Dict]:
         """Get clusters for a specific viewport and zoom level"""

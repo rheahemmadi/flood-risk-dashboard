@@ -99,3 +99,13 @@ Desktop.ini
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Temporary index files
+*.idx
+
+# Data files
+*.nc
