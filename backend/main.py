@@ -203,10 +203,9 @@ def run_full_pipeline():
         now_utc = datetime.now(timezone.utc)
         run_date = now_utc - timedelta(days=1)
         
-        
         # 2. Run Pipeline: Fetch and save the new 3-day forecast
-        # print("--- Starting background pipeline run ---")
-        # update_raw_points_for_run_date(run_date)
+        print("--- Starting background pipeline run ---")
+        update_raw_points_for_run_date(run_date)
         
         # 3. Generate Clusters: Run clustering for each of the next 3 days
         print("--- Starting background cluster generation ---")
