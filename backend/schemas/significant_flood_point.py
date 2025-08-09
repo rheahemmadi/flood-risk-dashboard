@@ -1,7 +1,8 @@
 from mongoengine import Document, StringField, FloatField, IntField
 
 class SignificantFloodPoint(Document):
-    time = StringField(required=True)
+    forecast_run_date = StringField(required=True) # The day the forecast was made
+    valid_for_date = StringField(required=True)    # The day the forecast is for
     lat = FloatField(required=True)
     lon = FloatField(required=True)
     forecast_value = FloatField(required=True)
@@ -10,10 +11,9 @@ class SignificantFloodPoint(Document):
     meta = {
         'collection': 'significant_flood_points',
         'indexes': [
-            [('lat', 1), ('lon', 1)],
-            [('time', 1), ('lat', 1), ('lon', 1)],
-            [('forecast_value', 1)],
-            [('return_period', 1)] # Added index for the new field
+            'forecast_run_date', # Good for fast daily cleanup
+            'valid_for_date',    # Good for filtering by date on the map
+            [("lat", 1), ("lon", 1)], # Good for filtering by map area
         ]
     }
 
