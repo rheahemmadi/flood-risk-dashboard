@@ -65,6 +65,7 @@ async def get_flood_points(
             result.append({
                 'id': str(point.id),
                 'time': point.valid_for_date,
+                'forecast_run_date': point.forecast_run_date,
                 'lat': point.lat,
                 'lon': point.lon,
                 'forecast_value': point.forecast_value,

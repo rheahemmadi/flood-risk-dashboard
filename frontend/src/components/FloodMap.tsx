@@ -475,9 +475,10 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
                   longitude: point.lon,
                   location: `Flood Point ${point.id}`,
                   riskLevel,
-                  returnPeriod: `${Math.floor(point.forecast_value * 10)}-year return period`,
+                  returnPeriod: point.return_period,
                   trend: 'stable',
-                  date: point.time,
+                  date: point.forecast_run_date || point.time,
+                  forecastValue: point.forecast_value,
                   riverName: `Flood Point ${point.id}`,
                   description: `Flood risk point with forecast value: ${point.forecast_value}`
                 };

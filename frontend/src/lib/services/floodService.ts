@@ -3,6 +3,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 export interface FloodPoint {
   id: string;
   time: string;
+  forecast_run_date: string;
   lat: number;
   lon: number;
   forecast_value: number;
