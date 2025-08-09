@@ -211,8 +211,8 @@ class GeohashClusteringService:
         print("--- Starting Cluster Generation ---")
         
         # Clear all existing clusters before starting
-        FloodCluster.objects.delete()
-        print("✅ Cleared all existing clusters.")
+        # FloodCluster.objects.delete()
+        # print("✅ Cleared all existing clusters.")
 
         # Determine which dates to process
         if time:
@@ -245,7 +245,7 @@ class GeohashClusteringService:
                      FloodCluster.objects.insert(clusters_for_zoom)
                      print(f"   ✅ Created {len(clusters_for_zoom)} clusters for zoom {zoom_level}")
 
-        print("\n🏁 Hierarchical cluster generation complete for all dates!")
+        # print("\n🏁 Hierarchical cluster generation complete for all dates!")
 
     # def generate_all_zoom_clusters(self, time: str = None):
     #     """Generate clusters for all zoom levels hierarchically"""

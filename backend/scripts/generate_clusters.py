@@ -18,7 +18,7 @@ def generate_clusters(time: str = None):
         # Generate clusters for all zoom levels
         clustering_service.generate_all_zoom_clusters(time)
         
-        print("Cluster generation completed successfully!")
+        # print("Cluster generation completed successfully!")
         
     except Exception as e:
         print(f"Error generating clusters: {e}")

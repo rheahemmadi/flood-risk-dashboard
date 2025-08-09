@@ -2,7 +2,7 @@ from fastapi import FastAPI, Query, BackgroundTasks, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from config.database import connect_to_mongo
 from schemas.significant_flood_point import SignificantFloodPoint, FloodCluster
@@ -200,22 +200,29 @@ def run_full_pipeline():
     """The orchestrator that runs the full daily update process."""
     try:
         # 1. Set Date: Use yesterday's date for the new forecast run
-        run_date = datetime.utcnow() - timedelta(days=1)
+        now_utc = datetime.now(timezone.utc)
+        run_date = now_utc - timedelta(days=1)
+        
         
         # 2. Run Pipeline: Fetch and save the new 3-day forecast
-        print("--- Starting background pipeline run ---")
-        update_raw_points_for_run_date(run_date)
+        # print("--- Starting background pipeline run ---")
+        # update_raw_points_for_run_date(run_date)
         
         # 3. Generate Clusters: Run clustering for each of the next 3 days
         print("--- Starting background cluster generation ---")
+        FloodCluster.objects.delete()
+        print("✅ Cleared all existing clusters.")
+
         for i in range(3):
             cluster_date = run_date + timedelta(days=i+1)
             cluster_date_str = cluster_date.strftime("%Y-%m-%d")
             generate_clusters(time=cluster_date_str)
+
+        print("\n🏁 Hierarchical cluster generation complete for all dates!")
         
         # 4. Clean up old data (Keep 2 days of runs)
         print("--- Cleaning up old data ---")
-        cutoff_date = datetime.utcnow() - timedelta(days=2)
+        cutoff_date = run_date - timedelta(days=1)
         cutoff_date_str = cutoff_date.strftime("%Y-%m-%d")
         
         SignificantFloodPoint.objects(forecast_run_date__lt=cutoff_date_str).delete()
