@@ -3,6 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import os
 from datetime import datetime, timedelta, timezone
+import pytz
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 from config.database import connect_to_mongo
 from schemas.significant_flood_point import SignificantFloodPoint, FloodCluster
@@ -12,6 +15,9 @@ from scripts.update_pipeline_data import update_raw_points_for_run_date
 from scripts.generate_clusters import generate_clusters
 
 app = FastAPI()
+
+# Initialize the scheduler
+scheduler = AsyncIOScheduler()
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,6 +30,14 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_db_client():
     connect_to_mongo()
+    # Start the scheduler
+    scheduler.start()
+    print("🚀 Scheduler started - Daily pipeline will run at 2am UK time")
+
+@app.on_event("shutdown")
+def shutdown_event():
+    scheduler.shutdown()
+    print("🛑 Scheduler stopped")
 
 @app.get("/")
 def read_root():
@@ -228,9 +242,11 @@ async def get_point_timeseries(
 
 PIPELINE_API_KEY = os.getenv("PIPELINE_API_KEY")
 
-def run_full_pipeline():
+async def run_full_pipeline():
     """The orchestrator that runs the full daily update process."""
     try:
+        print(f"🕐 Starting scheduled pipeline run at {datetime.now(pytz.timezone('Europe/London')).strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        
         # 1. Set Date: Use yesterday's date for the new forecast run
         now_utc = datetime.now(timezone.utc)
         run_date = now_utc - timedelta(days=1)
@@ -263,14 +279,24 @@ def run_full_pipeline():
     except Exception as e:
         print(f"❌ Background pipeline failed: {e}")
 
-@app.post("/api/trigger-pipeline")
-async def trigger_pipeline(
-    background_tasks: BackgroundTasks,
-    x_api_key: Optional[str] = Header(None)
-):
-    """A secure endpoint to trigger the daily data update and clustering."""
-    if not PIPELINE_API_KEY or x_api_key != PIPELINE_API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid API Key")
+# Schedule the daily pipeline to run at 2am UK time
+scheduler.add_job(
+    run_full_pipeline,
+    CronTrigger(hour=2, minute=0, timezone=pytz.timezone('Europe/London')),
+    id='daily_pipeline',
+    name='Daily Flood Pipeline',
+    replace_existing=True
+)
+
+
+# @app.post("/api/trigger-pipeline")
+# async def trigger_pipeline_manual(
+#     background_tasks: BackgroundTasks,
+#     x_api_key: Optional[str] = Header(None)
+# ):
+#     """Manual trigger endpoint for testing or emergency runs."""
+#     if not PIPELINE_API_KEY or x_api_key != PIPELINE_API_KEY:
+#         raise HTTPException(status_code=401, detail="Invalid API Key")
     
-    background_tasks.add_task(run_full_pipeline)
-    return {"message": "Pipeline run accepted and started in the background."}
+#     background_tasks.add_task(run_full_pipeline)
+#     return {"message": "Manual pipeline run accepted and started in the background."}
