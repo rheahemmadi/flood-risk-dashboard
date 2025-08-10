@@ -129,7 +129,7 @@ async def get_flood_clusters(
 # In main.py, REPLACE your /api/flood-points/summary function with this one
 
 @app.get("/api/flood-points/summary")
-async def get_flood_summary():
+async def get_flood_summary(time: Optional[str] = Query(None, description="Filter by valid_for_date (YYYY-MM-DD) for per-day counts")):
     """
     Get a complete summary of all raw data points, including unique dates
     and a breakdown of points by risk level (return_period).
@@ -137,26 +137,30 @@ async def get_flood_summary():
     """
     try:
         # A $facet pipeline lets us run multiple aggregations in one stage
-        pipeline = [
-            {
-                "$facet": {
-                    # First aggregation: calculate overall stats and get dates
-                    "overall_stats": [
-                        {
-                            "$group": {
-                                "_id": None,
-                                "total_points": {"$sum": 1},
-                                "unique_dates": {"$addToSet": "$valid_for_date"}
-                            }
+        match_stage = {"$match": {"valid_for_date": time}} if time else None
+
+        pipeline = []
+        if match_stage:
+            pipeline.append(match_stage)
+
+        pipeline.append({
+            "$facet": {
+                # First aggregation: calculate overall stats and get dates
+                "overall_stats": [
+                    {
+                        "$group": {
+                            "_id": None,
+                            "total_points": {"$sum": 1},
+                            "unique_dates": {"$addToSet": "$valid_for_date"}
                         }
-                    ],
-                    # Second aggregation: get the counts for each risk level
-                    "risk_breakdown": [
-                        { "$group": { "_id": "$return_period", "count": {"$sum": 1} } }
-                    ]
-                }
+                    }
+                ],
+                # Second aggregation: get the counts for each risk level
+                "risk_breakdown": [
+                    { "$group": { "_id": "$return_period", "count": {"$sum": 1} } }
+                ]
             }
-        ]
+        })
 
         result = list(SignificantFloodPoint.objects.aggregate(*pipeline))
 

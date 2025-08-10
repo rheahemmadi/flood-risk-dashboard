@@ -144,8 +144,12 @@ export class FloodService {
     return response.json();
   }
 
-  static async getFloodPointsSummary(): Promise<FloodPointsSummary> {
-    const response = await fetch(`${API_BASE_URL}/api/flood-points/summary`);
+  static async getFloodPointsSummary(time?: string): Promise<FloodPointsSummary> {
+    const searchParams = new URLSearchParams();
+    if (time) searchParams.append('time', time);
+    const qs = searchParams.toString();
+    const url = `${API_BASE_URL}/api/flood-points/summary${qs ? `?${qs}` : ''}`;
+    const response = await fetch(url);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch flood points summary: ${response.statusText}`);
