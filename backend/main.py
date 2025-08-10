@@ -289,7 +289,7 @@ scheduler.add_job(
 )
 
 
-@app.post("/api/trigger-pipeline")
+@app.get("/api/trigger-pipeline")
 async def trigger_pipeline_manual(
     background_tasks: BackgroundTasks,
     x_api_key: Optional[str] = Header(None)
