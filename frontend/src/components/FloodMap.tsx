@@ -202,9 +202,69 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
     }))
   };
 
-  const onMarkerClick = useCallback((alert: FloodAlert) => {
-    setPopupInfo(alert);
-    onAlertClick(alert);
+  const computeTrend = (series: { time: string; forecast_value: number }[], currentDate: string): 'rising' | 'falling' | 'stable' => {
+    if (!series || series.length === 0) return 'stable';
+    // Ensure sorted by time asc
+    const sorted = [...series].sort((a, b) => a.time.localeCompare(b.time));
+    const idx = sorted.findIndex(s => s.time === currentDate);
+    if (idx === -1) return 'stable';
+
+    const value = sorted[idx].forecast_value;
+    const prev = sorted[idx - 1]?.forecast_value;
+    const next = sorted[idx + 1]?.forecast_value;
+
+    const within1 = (a: number, b: number) => Math.abs(a - b) <= 1.0;
+
+    // If first day (no prev)
+    if (prev === undefined && next !== undefined) {
+      const next2 = sorted[idx + 2]?.forecast_value; // might be undefined
+      // Compare to both next days if available
+      if (next2 !== undefined) {
+        if (value > next && value > next2 && !within1(value, next) && !within1(value, next2)) return 'falling';
+        if (value < next && value < next2 && !within1(value, next) && !within1(value, next2)) return 'rising';
+        // Mixed direction: compare to immediate next
+        if (!within1(value, next)) return value < next ? 'rising' : 'falling';
+        return 'stable';
+      }
+      // Only one future day
+      if (!within1(value, next)) return value < next ? 'rising' : 'falling';
+      return 'stable';
+    }
+
+    // If last day (no next)
+    if (next === undefined && prev !== undefined) {
+      if (!within1(value, prev)) return value > prev ? 'rising' : 'falling';
+      return 'stable';
+    }
+
+    // Middle day
+    if (prev !== undefined && next !== undefined) {
+      const bothHigher = prev > value && next > value && !within1(prev, value) && !within1(next, value);
+      const bothLower = prev < value && next < value && !within1(prev, value) && !within1(next, value);
+      if (bothHigher) return 'rising';
+      if (bothLower) return 'falling';
+      // Mixed: weigh towards next day
+      if (!within1(value, next)) return value < next ? 'rising' : 'falling';
+      // All within 1 m/s
+      if (within1(value, prev) && within1(value, next)) return 'stable';
+      return 'stable';
+    }
+
+    return 'stable';
+  };
+
+  const onMarkerClick = useCallback(async (alert: FloodAlert) => {
+    try {
+      const ts = await FloodService.getPointTimeSeries(alert.latitude, alert.longitude);
+      const trend = computeTrend(ts.series, alert.date);
+      const updated = { ...alert, trend } as FloodAlert;
+      setPopupInfo(updated);
+      onAlertClick(updated);
+    } catch (e) {
+      // Fallback to existing alert if time series fails
+      setPopupInfo(alert);
+      onAlertClick(alert);
+    }
   }, [onAlertClick]);
 
   const onMapClick = useCallback(() => {

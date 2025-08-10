@@ -44,6 +44,15 @@ export interface FloodClustersResponse {
   };
 }
 
+export interface PointTimeSeriesItem {
+  time: string;
+  forecast_value: number;
+}
+
+export interface PointTimeSeriesResponse {
+  series: PointTimeSeriesItem[];
+}
+
 
 export interface FloodPointsSummary {
   // These can be removed if you don't use them, or kept if you might later
@@ -142,6 +151,18 @@ export class FloodService {
       throw new Error(`Failed to fetch flood points summary: ${response.statusText}`);
     }
     
+    return response.json();
+  }
+
+  static async getPointTimeSeries(lat: number, lon: number): Promise<PointTimeSeriesResponse> {
+    const searchParams = new URLSearchParams();
+    searchParams.append('lat', lat.toString());
+    searchParams.append('lon', lon.toString());
+
+    const response = await fetch(`${API_BASE_URL}/api/flood-points/timeseries?${searchParams}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch time series: ${response.statusText}`);
+    }
     return response.json();
   }
 

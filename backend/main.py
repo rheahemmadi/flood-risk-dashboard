@@ -193,6 +193,33 @@ async def get_flood_summary():
         print(f"Error in /api/flood-points/summary: {e}")
         raise HTTPException(status_code=500, detail="Error fetching summary data.")
 
+# --- NEW: Time series for a specific coordinate ---
+@app.get("/api/flood-points/timeseries")
+async def get_point_timeseries(
+    lat: float = Query(..., description="Latitude of the point"),
+    lon: float = Query(..., description="Longitude of the point")
+):
+    """Return forecast values across available valid_for_date for a given coordinate."""
+    try:
+        points = (
+            SignificantFloodPoint
+            .objects(lat=lat, lon=lon)
+            .only('valid_for_date', 'forecast_value')
+        )
+        # Build list and sort by valid_for_date (YYYY-MM-DD)
+        series = [
+            {
+                'time': p.valid_for_date,
+                'forecast_value': p.forecast_value,
+            }
+            for p in points
+        ]
+        series.sort(key=lambda x: x['time'])
+        return { 'series': series }
+    except Exception as e:
+        print(f"Error in /api/flood-points/timeseries: {e}")
+        raise HTTPException(status_code=500, detail="Error fetching point time series.")
+
 # --- NEW: Orchestrator and Secure Trigger Endpoint ---
 
 PIPELINE_API_KEY = os.getenv("PIPELINE_API_KEY")
