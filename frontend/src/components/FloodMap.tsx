@@ -50,7 +50,11 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
 
   // Fetch clustered flood data when viewport or filters change
   const fetchClusters = useCallback(async (force = false) => {
-    if (!mapRef.current) return;
+    console.log('fetchClusters called with force:', force, 'selectedDate:', selectedDate);
+    if (!mapRef.current) {
+      console.log('No map ref, returning early');
+      return;
+    }
     
     const map = mapRef.current;
     const zoom = Math.floor(map.getZoom());
@@ -58,9 +62,12 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
     
     // Create a unique key for this fetch request
     const fetchKey = `${zoom}-${selectedDate}-${riskFilter.join(',')}-${bounds.getNorth().toFixed(2)}-${bounds.getSouth().toFixed(2)}-${bounds.getEast().toFixed(2)}-${bounds.getWest().toFixed(2)}`;
+    console.log('Fetch key:', fetchKey);
+    console.log('Last fetch params:', lastFetchParams);
 
     // Skip if we've already fetched this exact data (unless forced)
     if (!force && fetchKey === lastFetchParams) {
+      console.log('Skipping fetch - same data already fetched');
       return;
     }
     
@@ -133,14 +140,18 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
 
   // Force refresh viewport points when filters or date change
   useEffect(() => {
+    console.log('Date/Risk filter changed for viewport points - selectedDate:', selectedDate, 'zoom:', viewState.zoom);
     if (isClient && viewState.zoom > 9) {
+      console.log('Triggering viewport points fetch due to date/risk change');
       fetchViewportPoints(true);
     }
   }, [selectedDate, riskFilter, isClient]); // Removed fetchViewportPoints from dependencies
 
   // Fetch clusters when dependencies change
   useEffect(() => {
+    console.log('Date/Risk filter changed - selectedDate:', selectedDate, 'riskFilter:', riskFilter);
     if (isClient) {
+      console.log('Triggering cluster fetch due to date/risk change');
       fetchClusters(true); // Force fetch when filters change
     }
   }, [selectedDate, riskFilter, isClient]);
