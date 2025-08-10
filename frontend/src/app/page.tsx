@@ -35,23 +35,26 @@ const Index = () => {
       try {
         setLoading(true);
         
-        // Fetch ALL summary data (dates and counts) in one go.
-        const summary = await FloodService.getFloodPointsSummary();
-        
-        const dates = summary.unique_dates || [];
-        const counts = summary.risk_breakdown || { high: 0, medium: 0, low: 0 };
-        
-        // Set the state for the header components
+        // Fetch dates list first
+        const summaryAll = await FloodService.getFloodPointsSummary();
+        const dates = summaryAll.unique_dates || [];
         setAvailableDates(dates);
-        setAlertCounts(counts);
         
-        // Automatically select the first available date
+        // Automatically select the first available date and fetch its counts
         if (dates.length > 0) {
           setSelectedDate(dates[0]);
+          const summaryForFirst = await FloodService.getFloodPointsSummary(dates[0]);
+          const rb = summaryForFirst.risk_breakdown || {} as Record<string, number>;
+          setAlertCounts({
+            high: rb.high || 0,
+            medium: rb.medium || 0,
+            low: rb.low || 0,
+          });
+        } else {
+          setAlertCounts({ high: 0, medium: 0, low: 0 });
         }
       } catch (error) {
         console.error('Error loading summary data:', error);
-        // In case of an error, set empty state to prevent crashes
         setAvailableDates([]);
         setAlertCounts({ high: 0, medium: 0, low: 0 });
       } finally {
@@ -61,6 +64,26 @@ const Index = () => {
 
     loadInitialData();
   }, []); // The empty array [] ensures this runs only once when the page loads.
+
+  // Update alert counts whenever the selected date changes
+  useEffect(() => {
+    const loadCountsForDate = async () => {
+      if (!selectedDate) return;
+      try {
+        const summary = await FloodService.getFloodPointsSummary(selectedDate);
+        const rb = summary.risk_breakdown || {} as Record<string, number>;
+        setAlertCounts({
+          high: rb.high || 0,
+          medium: rb.medium || 0,
+          low: rb.low || 0,
+        });
+      } catch (error) {
+        console.error('Error loading per-day counts:', error);
+        setAlertCounts({ high: 0, medium: 0, low: 0 });
+      }
+    };
+    loadCountsForDate();
+  }, [selectedDate]);
 
   // CHANGE: The other useEffect hooks that fetched data are no longer needed
   // because the FloodMap component now handles its own data fetching based on

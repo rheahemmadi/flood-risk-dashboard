@@ -7,6 +7,7 @@ export interface FloodAlert {
   returnPeriod: string;
   trend: 'rising' | 'falling' | 'stable';
   date: string;
+  forecastValue?: number;
   riverName?: string;
   description?: string;
 }

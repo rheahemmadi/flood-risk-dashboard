@@ -65,6 +65,7 @@ async def get_flood_points(
             result.append({
                 'id': str(point.id),
                 'time': point.valid_for_date,
+                'forecast_run_date': point.forecast_run_date,
                 'lat': point.lat,
                 'lon': point.lon,
                 'forecast_value': point.forecast_value,
@@ -128,7 +129,7 @@ async def get_flood_clusters(
 # In main.py, REPLACE your /api/flood-points/summary function with this one
 
 @app.get("/api/flood-points/summary")
-async def get_flood_summary():
+async def get_flood_summary(time: Optional[str] = Query(None, description="Filter by valid_for_date (YYYY-MM-DD) for per-day counts")):
     """
     Get a complete summary of all raw data points, including unique dates
     and a breakdown of points by risk level (return_period).
@@ -136,26 +137,30 @@ async def get_flood_summary():
     """
     try:
         # A $facet pipeline lets us run multiple aggregations in one stage
-        pipeline = [
-            {
-                "$facet": {
-                    # First aggregation: calculate overall stats and get dates
-                    "overall_stats": [
-                        {
-                            "$group": {
-                                "_id": None,
-                                "total_points": {"$sum": 1},
-                                "unique_dates": {"$addToSet": "$valid_for_date"}
-                            }
+        match_stage = {"$match": {"valid_for_date": time}} if time else None
+
+        pipeline = []
+        if match_stage:
+            pipeline.append(match_stage)
+
+        pipeline.append({
+            "$facet": {
+                # First aggregation: calculate overall stats and get dates
+                "overall_stats": [
+                    {
+                        "$group": {
+                            "_id": None,
+                            "total_points": {"$sum": 1},
+                            "unique_dates": {"$addToSet": "$valid_for_date"}
                         }
-                    ],
-                    # Second aggregation: get the counts for each risk level
-                    "risk_breakdown": [
-                        { "$group": { "_id": "$return_period", "count": {"$sum": 1} } }
-                    ]
-                }
+                    }
+                ],
+                # Second aggregation: get the counts for each risk level
+                "risk_breakdown": [
+                    { "$group": { "_id": "$return_period", "count": {"$sum": 1} } }
+                ]
             }
-        ]
+        })
 
         result = list(SignificantFloodPoint.objects.aggregate(*pipeline))
 
@@ -191,6 +196,33 @@ async def get_flood_summary():
     except Exception as e:
         print(f"Error in /api/flood-points/summary: {e}")
         raise HTTPException(status_code=500, detail="Error fetching summary data.")
+
+# --- NEW: Time series for a specific coordinate ---
+@app.get("/api/flood-points/timeseries")
+async def get_point_timeseries(
+    lat: float = Query(..., description="Latitude of the point"),
+    lon: float = Query(..., description="Longitude of the point")
+):
+    """Return forecast values across available valid_for_date for a given coordinate."""
+    try:
+        points = (
+            SignificantFloodPoint
+            .objects(lat=lat, lon=lon)
+            .only('valid_for_date', 'forecast_value')
+        )
+        # Build list and sort by valid_for_date (YYYY-MM-DD)
+        series = [
+            {
+                'time': p.valid_for_date,
+                'forecast_value': p.forecast_value,
+            }
+            for p in points
+        ]
+        series.sort(key=lambda x: x['time'])
+        return { 'series': series }
+    except Exception as e:
+        print(f"Error in /api/flood-points/timeseries: {e}")
+        raise HTTPException(status_code=500, detail="Error fetching point time series.")
 
 # --- NEW: Orchestrator and Secure Trigger Endpoint ---
 

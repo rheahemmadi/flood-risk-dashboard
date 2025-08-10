@@ -114,24 +114,28 @@ const AlertInfoPanel = ({ alert, onClose }: AlertInfoPanelProps) => {
           </div>
 
           {/* Technical Information */}
-          <div className="bg-muted/30 border border-dashboard-border rounded-lg p-4">
+            <div className="bg-muted/30 border border-dashboard-border rounded-lg p-4">
             <h4 className="font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-ifrc-red rounded-full"></span>
               Technical Details
             </h4>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Coordinates:</span>
-                <span className="font-mono text-xs sm:text-sm">{alert.latitude.toFixed(4)}, {alert.longitude.toFixed(4)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Forecast Date:</span>
-                <span className="text-xs sm:text-sm">{new Date(alert.date).toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric',
-                  year: 'numeric'
-                })}</span>
-              </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Forecast Date:</span>
+                  <span className="text-xs sm:text-sm">{new Date(alert.date).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Coordinates:</span>
+                  <span className="text-xs sm:text-sm">{alert.latitude.toFixed(4)}, {alert.longitude.toFixed(4)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Forecasted Discharge (m/s):</span>
+                  <span className="text-xs sm:text-sm">{alert.forecastValue?.toFixed(2)}</span>
+                </div>
             </div>
           </div>
 

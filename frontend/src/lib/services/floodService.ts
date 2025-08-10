@@ -3,6 +3,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 export interface FloodPoint {
   id: string;
   time: string;
+  forecast_run_date: string;
   lat: number;
   lon: number;
   forecast_value: number;
@@ -41,6 +42,15 @@ export interface FloodClustersResponse {
     east: number;
     west: number;
   };
+}
+
+export interface PointTimeSeriesItem {
+  time: string;
+  forecast_value: number;
+}
+
+export interface PointTimeSeriesResponse {
+  series: PointTimeSeriesItem[];
 }
 
 
@@ -134,13 +144,29 @@ export class FloodService {
     return response.json();
   }
 
-  static async getFloodPointsSummary(): Promise<FloodPointsSummary> {
-    const response = await fetch(`${API_BASE_URL}/api/flood-points/summary`);
+  static async getFloodPointsSummary(time?: string): Promise<FloodPointsSummary> {
+    const searchParams = new URLSearchParams();
+    if (time) searchParams.append('time', time);
+    const qs = searchParams.toString();
+    const url = `${API_BASE_URL}/api/flood-points/summary${qs ? `?${qs}` : ''}`;
+    const response = await fetch(url);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch flood points summary: ${response.statusText}`);
     }
     
+    return response.json();
+  }
+
+  static async getPointTimeSeries(lat: number, lon: number): Promise<PointTimeSeriesResponse> {
+    const searchParams = new URLSearchParams();
+    searchParams.append('lat', lat.toString());
+    searchParams.append('lon', lon.toString());
+
+    const response = await fetch(`${API_BASE_URL}/api/flood-points/timeseries?${searchParams}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch time series: ${response.statusText}`);
+    }
     return response.json();
   }
 
