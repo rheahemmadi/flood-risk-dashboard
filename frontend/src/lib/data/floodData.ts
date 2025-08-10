@@ -216,12 +216,16 @@ async function cachedFetch<T>(
   // Try to get from cache first
   const cached = cache.get(method, params);
   if (cached) {
+    console.log(`Cache HIT for ${method}:`, params);
     return cached;
   }
 
+  console.log(`Cache MISS for ${method}:`, params);
   // Fetch and cache the result
   try {
+    console.log(`Making API call for ${method}...`);
     const result = await fetchFn();
+    console.log(`API call successful for ${method}, caching result`);
     cache.set(method, params, result);
     return result;
   } catch (error) {
@@ -243,16 +247,16 @@ export const convertToFloodPoint = (point: FloodPoint) => ({
 // Convert backend flood clusters to frontend format
 export const convertToFloodCluster = (cluster: FloodCluster) => ({
   id: cluster.id,
-  zoomLevel: cluster.zoom_level,
+  zoom_level: cluster.zoom_level,
   geohash: cluster.geohash,
-  latitude: cluster.lat,
-  longitude: cluster.lon,
+  lat: cluster.lat,
+  lon: cluster.lon,
   time: cluster.time,
-  pointCount: cluster.point_count,
-  avgForecast: cluster.avg_forecast,
-  maxForecast: cluster.max_forecast,
-  minForecast: cluster.min_forecast,
-  riskLevel: cluster.risk_level
+  point_count: cluster.point_count,
+  avg_forecast: cluster.avg_forecast,
+  max_forecast: cluster.max_forecast,
+  min_forecast: cluster.min_forecast,
+  risk_level: cluster.risk_level
 });
 
 // Determine risk level based on forecast value
@@ -297,15 +301,21 @@ export const fetchFloodPointsForViewport = async (
 export const fetchFloodClustersForViewport = async (
   zoomLevel: number,
   bounds: ViewportBounds,
-  time?: string
+  time?: string,
+  riskLevel?: 'low' | 'medium' | 'high' | 'extreme'
 ) => {
   return cachedFetch(
     floodDataCache,
     'fetchFloodClustersForViewport',
-    { zoomLevel, bounds, time },
+    { zoomLevel, bounds, time, riskLevel },
     async () => {
-      const clusters = await FloodService.getClustersForViewport(zoomLevel, bounds, time);
-      return clusters.map(convertToFloodCluster);
+      const response = await FloodService.getFloodClusters({
+        zoom_level: zoomLevel,
+        bounds,
+        time,
+        risk_level: riskLevel
+      });
+      return response.clusters.map(convertToFloodCluster);
     }
   );
 };

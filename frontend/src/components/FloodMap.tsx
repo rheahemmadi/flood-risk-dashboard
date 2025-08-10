@@ -5,6 +5,7 @@ import Map, { Marker, Popup, NavigationControl, FullscreenControl, Source, Layer
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { FloodAlert, FloodPoint, FloodSegment } from '@/lib/types/flood';
 import { FloodService, FloodCluster } from '@/lib/services/floodService';
+import { fetchFloodClustersForViewport } from '@/lib/data/floodData';
 import { MAPBOX_CONFIG, getMarkerColor, getMarkerSize, getFloodPointSize } from '@/lib/config/mapbox';
 import { AlertTriangle } from 'lucide-react';
 import { SearchSuggestion, flyToLocation } from '@/lib/utils/search';
@@ -25,7 +26,6 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
   selectedDate, 
   riskFilter, 
   searchQuery,
-  floodPoints = [],
   floodSegments = []
 }, ref) => {
   const [popupInfo, setPopupInfo] = useState<FloodAlert | null>(null);
@@ -35,6 +35,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
   const [floodClusters, setFloodClusters] = useState<FloodCluster[]>([]);
   const [viewportFloodPoints, setViewportFloodPoints] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingPoints, setLoadingPoints] = useState(false);
   const [lastFetchParams, setLastFetchParams] = useState<string>('');
   const [lastPointFetchParams, setLastPointFetchParams] = useState<string>('');
   const mapRef = useRef<any>(null);
@@ -57,7 +58,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
     
     // Create a unique key for this fetch request
     const fetchKey = `${zoom}-${selectedDate}-${riskFilter.join(',')}-${bounds.getNorth().toFixed(2)}-${bounds.getSouth().toFixed(2)}-${bounds.getEast().toFixed(2)}-${bounds.getWest().toFixed(2)}`;
-    
+
     // Skip if we've already fetched this exact data (unless forced)
     if (!force && fetchKey === lastFetchParams) {
       return;
@@ -65,19 +66,24 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
     
     setLoading(true);
     try {
-      const clusterData = await FloodService.getFloodClusters({
-        zoom_level: zoom,
-        time: selectedDate,
-        bounds: {
+      console.log("zoom level", map.getZoom());
+      
+      const clusters = await fetchFloodClustersForViewport(
+        zoom,
+        {
           north: bounds.getNorth(),
           south: bounds.getSouth(),
           east: bounds.getEast(),
           west: bounds.getWest()
         },
-        risk_level: riskFilter.length === 1 ? riskFilter[0] as any : undefined
-      });
+        selectedDate,
+        riskFilter.length === 1 ? riskFilter[0] as any : undefined
+      );
       
-      setFloodClusters(clusterData.clusters);
+
+      if (zoom <= 7) {
+        setFloodClusters(clusters);
+      }
       setLastFetchParams(fetchKey);
     } catch (error) {
       console.error('Error fetching clusters:', error);
@@ -88,7 +94,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
 
   // Fetch flood points for current viewport when zoomed in
   const fetchViewportPoints = useCallback(async (force = false) => {
-    if (!mapRef.current || viewState.zoom <= 8) return;
+    if (!mapRef.current || viewState.zoom <= 9) return;
     
     const map = mapRef.current;
     const bounds = map.getBounds();
@@ -101,7 +107,9 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
       return;
     }
     
+    setLoadingPoints(true);
     try {
+      console.log('Fetching viewport points for zoom:', viewState.zoom);
       const pointData = await FloodService.getFloodPoints({
         limit: 2000,
         time: selectedDate,
@@ -113,19 +121,22 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
         }
       });
       
+      console.log('Received viewport points:', pointData.points.length);
       setViewportFloodPoints(pointData.points);
       setLastPointFetchParams(fetchKey);
     } catch (error) {
       console.error('Error fetching viewport points:', error);
+    } finally {
+      setLoadingPoints(false);
     }
-  }, [viewState.zoom, selectedDate, riskFilter, lastPointFetchParams]);
+  }, [viewState.zoom, selectedDate, riskFilter]); // Removed lastPointFetchParams from dependencies
 
   // Force refresh viewport points when filters or date change
   useEffect(() => {
-    if (isClient) {
+    if (isClient && viewState.zoom > 9) {
       fetchViewportPoints(true);
     }
-  }, [selectedDate, riskFilter, isClient, fetchViewportPoints]);
+  }, [selectedDate, riskFilter, isClient]); // Removed fetchViewportPoints from dependencies
 
   // Fetch clusters when dependencies change
   useEffect(() => {
@@ -176,7 +187,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
     const mapped = c.risk_level === 'extreme' ? 'high' : c.risk_level;
     return riskFilter.includes(mapped);
   });
-
+  
   const floodClustersGeoJSON = {
     type: 'FeatureCollection' as const,
     features: filteredFloodClusters.map(cluster => ({
@@ -337,12 +348,19 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
   const handleMapMove = useCallback((evt: any) => {
     setViewState(evt.viewState);
     
-    // More aggressive debounced fetch to prevent continuous movement
+    // Debounced fetch to prevent continuous movement
     clearTimeout((window as any).clusterTimeout);
     (window as any).clusterTimeout = setTimeout(() => {
       fetchClusters(false);
-      fetchViewportPoints(false);
     }, 1000);
+    
+    // Separate timeout for viewport points with longer delay
+    if (evt.viewState.zoom > 9) {
+      clearTimeout((window as any).viewportTimeout);
+      (window as any).viewportTimeout = setTimeout(() => {
+        fetchViewportPoints(false);
+      }, 1500); // Slightly longer delay for viewport points
+    }
   }, [fetchClusters, fetchViewportPoints]);
 
   // Check if Mapbox token is configured
@@ -385,7 +403,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
 
   return (
     <div className="relative w-full h-full">
-      {loading && (
+      {(loading || loadingPoints) && (
         <div className="absolute top-4 left-4 z-[1000] bg-white/90 backdrop-blur-sm px-3 py-2 rounded-lg shadow-lg">
           <div className="flex items-center space-x-2">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
@@ -469,7 +487,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
         )}
 
         {/* Clustered Flood Points */}
-        {floodClusters.length > 0 && (
+        {floodClusters.length > 0 && viewState.zoom <= 9 && (
           <Source 
             id="flood-clusters" 
             type="geojson" 
@@ -521,7 +539,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
         )}
 
         {/* Flood Alert Markers - Show individual points when zoomed in (no clusters) */}
-        {viewState.zoom > 8 && viewportFloodPoints.map((point) => {
+        {viewState.zoom > 9 && viewportFloodPoints.map((point) => {
            let riskLevel: 'high' | 'medium' | 'low' = 'low';
            if (point.return_period === '20-year') {
              riskLevel = 'high';
