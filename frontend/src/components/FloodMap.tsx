@@ -120,6 +120,13 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
     }
   }, [viewState.zoom, selectedDate, riskFilter, lastPointFetchParams]);
 
+  // Force refresh viewport points when filters or date change
+  useEffect(() => {
+    if (isClient) {
+      fetchViewportPoints(true);
+    }
+  }, [selectedDate, riskFilter, isClient, fetchViewportPoints]);
+
   // Fetch clusters when dependencies change
   useEffect(() => {
     if (isClient) {
@@ -165,9 +172,14 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
   );
 
   // Convert flood clusters to GeoJSON for rendering
+  const filteredFloodClusters = floodClusters.filter(c => {
+    const mapped = c.risk_level === 'extreme' ? 'high' : c.risk_level;
+    return riskFilter.includes(mapped);
+  });
+
   const floodClustersGeoJSON = {
     type: 'FeatureCollection' as const,
-    features: floodClusters.map(cluster => ({
+    features: filteredFloodClusters.map(cluster => ({
       type: 'Feature' as const,
       properties: {
         id: cluster.id,
@@ -517,6 +529,9 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
              riskLevel = 'medium';
            } else if (point.return_period === '2-year') {
              riskLevel = 'low';
+           }
+           if (!riskFilter.includes(riskLevel)) {
+             return null;
            }
           // const riskLevel = point.forecast_value >= 5.0 ? 'high' : 
           //                  point.forecast_value >= 2.0 ? 'medium' : 'low';
