@@ -6,11 +6,11 @@ export const MAPBOX_CONFIG = {
   // Default map style - changed to streets-v12 (default)
   mapStyle: 'mapbox://styles/mapbox/streets-v12',
   
-  // Default viewport - focused on Northern Europe (where your flood data is located)
+  // Default viewport - focused on India (more floods as monsoon season)
   defaultViewport: {
-    latitude: 70.5,  // Northern Europe center latitude (Norway/Sweden/Finland area)
-    longitude: 26.0, // Northern Europe center longitude
-    zoom: 4          // Zoom to show the region clearly
+    latitude: 22.5, 
+    longitude: 78.5, 
+    zoom: 4          
   },
   
   // Map options
