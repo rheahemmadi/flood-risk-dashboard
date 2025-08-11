@@ -31,8 +31,8 @@ app.add_middleware(
 def startup_db_client():
     connect_to_mongo()
     # Start the scheduler
-    scheduler.start()
-    print("🚀 Scheduler started - Daily pipeline will run at 2am UK time")
+    # scheduler.start()
+    # print("🚀 Scheduler started - Daily pipeline will run at 2am UK time")
 
 @app.on_event("shutdown")
 def shutdown_event():
