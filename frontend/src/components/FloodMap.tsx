@@ -40,10 +40,8 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
   const [lastPointFetchParams, setLastPointFetchParams] = useState<string>('');
   const mapRef = useRef<any>(null);
 
-  // Expose map ref to parent component
   useImperativeHandle(ref, () => mapRef.current);
 
-  // Ensure component is mounted on client side
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -374,6 +372,12 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
     }
   }, [fetchClusters, fetchViewportPoints]);
 
+  // Handle initial map load
+  const handleMapLoad = useCallback(() => {
+    // Fetch clusters immediately when map loads
+    fetchClusters(true);
+  }, [fetchClusters]);
+
   // Check if Mapbox token is configured
   if (!MAPBOX_CONFIG.accessToken || MAPBOX_CONFIG.accessToken === 'your_mapbox_token_here') {
     return (
@@ -426,6 +430,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
       <Map
         ref={mapRef}
         {...viewState}
+        onLoad={handleMapLoad}
         onMove={handleMapMove}
         onClick={(event) => {
           const features = event.features || [];
