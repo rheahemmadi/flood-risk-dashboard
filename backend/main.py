@@ -289,14 +289,14 @@ scheduler.add_job(
 )
 
 
-# @app.get("/api/trigger-pipeline")
-# async def trigger_pipeline_manual(
-#     background_tasks: BackgroundTasks,
-#     x_api_key: Optional[str] = Header(None)
-# ):
-#     # """Manual trigger endpoint for testing or emergency runs."""
-#     # if not PIPELINE_API_KEY or x_api_key != PIPELINE_API_KEY:
-#     #     raise HTTPException(status_code=401, detail="Invalid API Key")
+@app.post("/api/trigger-pipeline")
+async def trigger_pipeline_manual(
+    background_tasks: BackgroundTasks,
+    x_api_key: Optional[str] = Header(None)
+):
+    # """Manual trigger endpoint for testing or emergency runs."""
+    # if not PIPELINE_API_KEY or x_api_key != PIPELINE_API_KEY:
+    #     raise HTTPException(status_code=401, detail="Invalid API Key")
     
-#     background_tasks.add_task(run_full_pipeline)
-#     return {"message": "Manual pipeline run accepted and started in the background."}
+    background_tasks.add_task(run_full_pipeline)
+    return {"message": "Manual pipeline run accepted and started in the background."}
