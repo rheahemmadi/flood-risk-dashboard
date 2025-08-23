@@ -31,7 +31,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
   const [popupInfo, setPopupInfo] = useState<FloodAlert | null>(null);
   const [viewState, setViewState] = useState(MAPBOX_CONFIG.defaultViewport);
   const [isClient, setIsClient] = useState(false);
-  const [clusterInfo, setClusterInfo] = useState<any>(null);
+
   const [floodClusters, setFloodClusters] = useState<FloodCluster[]>([]);
   const [viewportFloodPoints, setViewportFloodPoints] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,10 +40,8 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
   const [lastPointFetchParams, setLastPointFetchParams] = useState<string>('');
   const mapRef = useRef<any>(null);
 
-  // Expose map ref to parent component
   useImperativeHandle(ref, () => mapRef.current);
 
-  // Ensure component is mounted on client side
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -303,7 +301,6 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
 
   const onMapClick = useCallback(() => {
     setPopupInfo(null);
-    setClusterInfo(null);
   }, []);
 
   const handleLocationSelect = useCallback((suggestion: SearchSuggestion) => {
@@ -332,28 +329,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
     });
   }, []);
 
-  // Handle cluster mouse enter
-  const handleClusterMouseEnter = useCallback((event: any) => {
-    const feature = event.features[0];
-    if (!feature.properties.point_count) return;
-    
-    const pointCount = feature.properties.point_count;
-    const coordinates = feature.geometry.coordinates.slice();
-    const riskLevel = feature.properties.risk_level;
-    
-    setClusterInfo({
-      coordinates,
-      pointCount,
-      riskLevel,
-      avgForecast: feature.properties.avg_forecast,
-      maxForecast: feature.properties.max_forecast
-    });
-  }, []);
 
-  // Handle cluster mouse leave
-  const handleClusterMouseLeave = useCallback(() => {
-    setClusterInfo(null);
-  }, []);
 
   // Handle map move to refetch clusters and points
   const handleMapMove = useCallback((evt: any) => {
@@ -373,6 +349,12 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
       }, 1500); // Slightly longer delay for viewport points
     }
   }, [fetchClusters, fetchViewportPoints]);
+
+  // Handle initial map load
+  const handleMapLoad = useCallback(() => {
+    // Fetch clusters immediately when map loads
+    fetchClusters(true);
+  }, [fetchClusters]);
 
   // Check if Mapbox token is configured
   if (!MAPBOX_CONFIG.accessToken || MAPBOX_CONFIG.accessToken === 'your_mapbox_token_here') {
@@ -426,6 +408,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
       <Map
         ref={mapRef}
         {...viewState}
+        onLoad={handleMapLoad}
         onMove={handleMapMove}
         onClick={(event) => {
           const features = event.features || [];
@@ -437,15 +420,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
             onMapClick();
           }
         }}
-        onMouseEnter={(event) => {
-          const features = event.features || [];
-          const clusterFeature = features.find(f => f.properties?.point_count);
-          
-          if (clusterFeature) {
-            handleClusterMouseEnter({ features: [clusterFeature] });
-          }
-        }}
-        onMouseLeave={handleClusterMouseLeave}
+
         mapStyle={MAPBOX_CONFIG.mapStyle}
         mapboxAccessToken={MAPBOX_CONFIG.accessToken}
         style={{ width: '100%', height: '100%' }}
@@ -605,61 +580,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
           );
         })}
 
-        {/* Popup for selected marker */}
-        {popupInfo && (
-          <Popup
-            anchor="bottom"
-            latitude={popupInfo.latitude}
-            longitude={popupInfo.longitude}
-            onClose={() => setPopupInfo(null)}
-            closeButton={true}
-            closeOnClick={false}
-            maxWidth="300px"
-          >
-            <div className="p-2">
-              <h3 className="font-semibold text-sm">{popupInfo.location}</h3>
-              <p className="text-xs text-gray-600 mb-1">
-                {popupInfo.riverName && `${popupInfo.riverName} • `}
-                {popupInfo.riskLevel.toUpperCase()} Risk
-              </p>
-              <p className="text-xs text-gray-500">
-                Return Period: {popupInfo.returnPeriod} • Trend: {popupInfo.trend}
-              </p>
-            </div>
-          </Popup>
-        )}
 
-        {/* Cluster info popup */}
-        {clusterInfo && (
-          <Popup
-            anchor="bottom"
-            latitude={clusterInfo.coordinates[1]}
-            longitude={clusterInfo.coordinates[0]}
-            onClose={() => setClusterInfo(null)}
-            closeButton={false}
-            closeOnClick={false}
-            maxWidth="200px"
-          >
-            <div className="p-2">
-              <h3 className="font-semibold text-sm">{clusterInfo.pointCount} Flood Points</h3>
-              <div className="text-xs text-gray-600 space-y-1">
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{
-                      backgroundColor: clusterInfo.riskLevel === 'extreme' ? '#7c2d12' :
-                                     clusterInfo.riskLevel === 'high' ? '#dc2626' :
-                                     clusterInfo.riskLevel === 'medium' ? '#f59e0b' : '#10b981'
-                    }}
-                  ></div>
-                  <span className="capitalize">{clusterInfo.riskLevel} Risk</span>
-                </div>
-                <p>Avg: {clusterInfo.avgForecast?.toFixed(2)}</p>
-                <p>Max: {clusterInfo.maxForecast?.toFixed(2)}</p>
-              </div>
-            </div>
-          </Popup>
-        )}
       </Map>
     </div>
   );
