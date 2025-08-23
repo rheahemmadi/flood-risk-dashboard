@@ -285,11 +285,11 @@ async def generate_ai_insight(request: AIInsightRequest):
         
         # Create the prompt
         forecast_text = f"{request.alert.forecastValue:.2f}" if request.alert.forecastValue else "N/A"
-        prompt = f"""You are an emergency advisor. Based on these coordinates {request.alert.latitude:.4f}, {request.alert.longitude:.4f}, identify the specific area/region and create a critical flood warning.
+        prompt = f"""You are an emergency advisor. Based on these coordinates {request.alert.longitude:.4f}, {request.alert.latitude:.4f}, identify the country and create a critical flood warning.
 
 Data: 20-year return period flood, discharge {forecast_text} m³/s, forecast date {request.alert.date}
 
-Write exactly 2-3 sentences: First sentence identifies the area and severity, second sentence gives timeline and impact, third sentence provides immediate action. Be urgent and specific about the location."""
+Write exactly 2-3 sentences: First sentence identifies the country and flood severity, second sentence describes the potential impact, third sentence provides immediate action. Keep timing vague and focus on urgency."""
 
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
