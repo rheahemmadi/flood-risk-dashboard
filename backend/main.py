@@ -1,11 +1,18 @@
 from fastapi import FastAPI, Query, BackgroundTasks, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from typing import List, Optional
 import os
 from datetime import datetime, timedelta, timezone
 import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+import google.generativeai as genai
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 from config.database import connect_to_mongo
 from schemas.significant_flood_point import SignificantFloodPoint, FloodCluster
@@ -16,9 +23,31 @@ from scripts.generate_clusters import generate_clusters
 
 app = FastAPI()
 
+# Configure Gemini API - try both possible environment variable names
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+print(f"🔑 GEMINI_API_KEY loaded: {'Yes' if GEMINI_API_KEY else 'No'}")
+
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    print("✅ Gemini API configured successfully")
+else:
+    print("❌ WARNING: GEMINI_API_KEY not found in environment")
+
 # Initialize the scheduler
 scheduler = AsyncIOScheduler()
 
+class FloodAlertData(BaseModel):
+    location: str
+    riskLevel: str
+    returnPeriod: str
+    date: str
+    latitude: float
+    longitude: float
+    forecastValue: Optional[float] = None
+    riverName: Optional[str] = None
+
+class AIInsightRequest(BaseModel):
+    alert: FloodAlertData
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:3001", "https://flood-risk-dashboard.vercel.app"],
@@ -237,6 +266,49 @@ async def get_point_timeseries(
     except Exception as e:
         print(f"Error in /api/flood-points/timeseries: {e}")
         raise HTTPException(status_code=500, detail="Error fetching point time series.")
+
+@app.post("/api/generate-insight")
+async def generate_ai_insight(request: AIInsightRequest):
+    print(f"🤖 AI Insight request received for {request.alert.location}")
+    print(f"🔍 Return Period: {request.alert.returnPeriod}")
+    print(f"🔑 API Key available: {'Yes' if GEMINI_API_KEY else 'No'}")
+    
+    if not GEMINI_API_KEY:
+        print("❌ No GEMINI_API_KEY found in environment")
+        raise HTTPException(status_code=503, detail="AI service is not configured.")
+    
+    if request.alert.returnPeriod != "20-year":
+        raise HTTPException(status_code=400, detail="AI insights only available for 20-year return period alerts.")
+    
+    try:
+        print("🔄 Calling Gemini API...")
+        
+        # Create the prompt
+        forecast_text = f"{request.alert.forecastValue:.2f}" if request.alert.forecastValue else "N/A"
+        prompt = f"""You are an emergency advisor. Based on these coordinates {request.alert.latitude:.4f}, {request.alert.longitude:.4f}, identify the specific area/region and create a critical flood warning.
+
+Data: 20-year return period flood, discharge {forecast_text} m³/s, forecast date {request.alert.date}
+
+Write exactly 2-3 sentences: First sentence identifies the area and severity, second sentence gives timeline and impact, third sentence provides immediate action. Be urgent and specific about the location."""
+
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        print("✅ Gemini API response received")
+        
+        if not response.text:
+            raise HTTPException(status_code=500, detail="Failed to generate AI insight")
+        
+        return {
+            "insight": response.text.strip(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "model": "gemini-1.5-flash"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in /api/generate-insight: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while generating AI insights")
 
 # --- NEW: Orchestrator and Secure Trigger Endpoint ---
 
