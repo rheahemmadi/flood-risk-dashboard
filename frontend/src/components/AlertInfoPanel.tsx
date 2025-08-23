@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { X, TrendingUp, TrendingDown, Minus, AlertTriangle, Droplets, Brain } from 'lucide-react';
 import { FloodAlert } from '@/lib/types/flood';
+import { FloodService, FloodAlertData } from '@/lib/services/floodService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,21 +38,33 @@ const AlertInfoPanel = ({ alert, onClose }: AlertInfoPanelProps) => {
   };
 
   const generateAIInsight = async () => {
-    if (alert.riskLevel !== 'high') return;
+    if (!alert || alert.returnPeriod !== '20-year') return;
     
     setLoadingInsight(true);
     
-    // Simulate AI API call
-    setTimeout(() => {
-      const insights = [
-        `High flood risk detected for ${alert.location}. The ${alert.riverName || 'river system'} is expected to exceed ${alert.returnPeriod} return period levels. Current weather patterns show increased precipitation in the upstream watershed. Residents in low-lying areas should prepare for potential evacuation. Emergency services are on standby.`,
-        `Critical flood warning for ${alert.location}. River discharge models indicate water levels will surpass historical ${alert.returnPeriod} thresholds within 24-48 hours. The confluence of multiple tributaries upstream is contributing to elevated risk. Local authorities recommend immediate preparation of emergency supplies and monitoring official evacuation notices.`,
-        `Severe flood alert active for ${alert.location}. Hydrological models show ${alert.trend} water levels with peak expected in the next 2-3 days. The ${alert.riverName || 'main river channel'} is experiencing increased flow due to recent heavy rainfall. Urban drainage systems may be overwhelmed. Citizens should avoid flood-prone areas and stay informed through official channels.`
-      ];
+    try {
+      // This alertData object is correctly structured already
+      const alertData: FloodAlertData = {
+        latitude: alert.latitude, longitude: alert.longitude,
+        location: alert.location, riskLevel: alert.riskLevel,
+        returnPeriod: alert.returnPeriod, date: alert.date,
+        forecastValue: alert.forecastValue, riverName: alert.riverName
+      };
+
+      // Call the real service function
+      const response = await FloodService.generateAiInsight(alertData);
       
-      setAiInsight(insights[Math.floor(Math.random() * insights.length)]);
+      // Clean up the AI response (remove markdown formatting)
+      const cleanedInsight = response.insight.replace(/^\*\*|\*\*$/g, '').trim();
+      setAiInsight(cleanedInsight);
+      
+    } catch (error) {
+      console.error('Error generating AI insight:', error);
+      const fallbackInsight = `Critical flood warning for ${alert.location}. This area is experiencing severe flood risk. Emergency services recommend immediate preparation, monitoring official evacuation notices, and avoiding flood-prone areas.`;
+      setAiInsight(fallbackInsight);
+    } finally {
       setLoadingInsight(false);
-    }, 2000);
+    }
   };
 
   return (
@@ -140,7 +153,7 @@ const AlertInfoPanel = ({ alert, onClose }: AlertInfoPanelProps) => {
           </div>
 
           {/* AI Emergency Analysis for Critical Alerts */}
-          {alert.riskLevel === 'high' && (
+          {alert.returnPeriod === '20-year' && (
             <div className="bg-ifrc-red-light/5 border border-ifrc-red/20 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-bold text-sm text-foreground flex items-center gap-2">

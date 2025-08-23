@@ -19,6 +19,7 @@ eckitlib==1.31.4
 ecmwf-datastores-client==0.2.0
 fastapi==0.116.1
 fckitlib==0.14.0
+google-generativeai==0.8.3
 findlibs==0.1.1
 fsspec==2025.7.0
 h11==0.16.0

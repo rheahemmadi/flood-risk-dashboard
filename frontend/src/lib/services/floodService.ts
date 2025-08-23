@@ -81,6 +81,23 @@ export interface ViewportBounds {
   west: number;
 }
 
+export interface FloodAlertData {
+  latitude: number;
+  longitude: number;
+  location: string;
+  riskLevel: string;
+  returnPeriod: string;
+  date: string;
+  forecastValue?: number;
+  riverName?: string;
+}
+
+export interface AIInsightResponse {
+  insight: string;
+  generated_at: string;
+  model: string;
+}
+
 export class FloodService {
   static async getFloodPoints(params: {
     limit?: number;
@@ -250,4 +267,17 @@ export class FloodService {
     });
     return response.clusters;
   }
-} 
+  static async generateAiInsight(alertData: FloodAlertData): Promise<AIInsightResponse> {
+    const response = await fetch(`${API_BASE_URL}/api/generate-insight`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ alert: alertData }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Failed to generate AI insight`);
+    }
+    return response.json();
+  }
+}
