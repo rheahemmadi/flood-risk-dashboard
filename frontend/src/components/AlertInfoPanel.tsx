@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react';
-import { X, TrendingUp, TrendingDown, Minus, AlertTriangle, Droplets, Brain } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, TrendingUp, TrendingDown, Minus, AlertTriangle, Brain } from 'lucide-react';
 import { FloodAlert } from '@/lib/types/flood';
 import { FloodService, FloodAlertData } from '@/lib/services/floodService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,28 @@ interface AlertInfoPanelProps {
 const AlertInfoPanel = ({ alert, onClose }: AlertInfoPanelProps) => {
   const [aiInsight, setAiInsight] = useState<string>('');
   const [loadingInsight, setLoadingInsight] = useState(false);
+  const [locationName, setLocationName] = useState<string>('');
+  const [loadingLocation, setLoadingLocation] = useState(false);
+
+  // Fetch location name when alert changes
+  useEffect(() => {
+    if (!alert) return;
+    
+    const fetchLocationName = async () => {
+      setLoadingLocation(true);
+      try {
+        const response = await FloodService.getLocationName(alert.latitude, alert.longitude);
+        setLocationName(response.location_name);
+      } catch (error) {
+        console.error('Error fetching location name:', error);
+        setLocationName(alert.location); // Fallback to original location
+      } finally {
+        setLoadingLocation(false);
+      }
+    };
+
+    fetchLocationName();
+  }, [alert]);
 
   if (!alert) return null;
 
@@ -88,12 +110,10 @@ const AlertInfoPanel = ({ alert, onClose }: AlertInfoPanelProps) => {
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-base text-foreground mb-1">Affected Area</h3>
-                <p className="font-semibold text-lg truncate">{alert.location}</p>
-                {alert.riverName && (
-                  <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-                    <Droplets className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate">{alert.riverName}</span>
-                  </p>
+                {loadingLocation ? (
+                  <p className="font-semibold text-lg text-muted-foreground">Loading location...</p>
+                ) : (
+                  <p className="font-semibold text-lg truncate">{locationName || alert.location}</p>
                 )}
               </div>
               <Badge 
