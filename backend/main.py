@@ -10,6 +10,7 @@ from apscheduler.triggers.cron import CronTrigger
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from dotenv import load_dotenv
+import httpx
 
 # Load environment variables
 load_dotenv()
@@ -32,6 +33,10 @@ if GEMINI_API_KEY:
     print("✅ Gemini API configured successfully")
 else:
     print("❌ WARNING: GEMINI_API_KEY not found in environment")
+
+# Configure Mapbox API
+MAPBOX_ACCESS_TOKEN = os.getenv("MAPBOX_ACCESS_TOKEN")
+print(f"🗺️ MAPBOX_ACCESS_TOKEN loaded: {'Yes' if MAPBOX_ACCESS_TOKEN else 'No'}")
 
 # Initialize the scheduler
 scheduler = AsyncIOScheduler()
@@ -309,6 +314,60 @@ Write exactly 2-3 sentences: First sentence identifies the country and flood sev
     except Exception as e:
         print(f"❌ Error in /api/generate-insight: {e}")
         raise HTTPException(status_code=500, detail="An error occurred while generating AI insights")
+
+@app.get("/api/location-name")
+async def get_location_name(
+    lat: float = Query(..., description="Latitude of the location"),
+    lon: float = Query(..., description="Longitude of the location")
+):
+    """Get location name from coordinates using Mapbox reverse geocoding."""
+    if not MAPBOX_ACCESS_TOKEN:
+        raise HTTPException(status_code=503, detail="Mapbox API is not configured")
+    
+    try:
+        # Call Mapbox reverse geocoding API
+        mapbox_url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{lon},{lat}.json"
+        params = {
+            "access_token": MAPBOX_ACCESS_TOKEN,
+            "types": "region,country"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(mapbox_url, params=params)
+            response.raise_for_status()
+            
+        data = response.json()
+        
+        if not data.get("features"):
+            return {"location_name": "Unknown Location"}
+        
+        # Find region and country from features
+        region = None
+        country = None
+        
+        for feature in data["features"]:
+            place_type = feature.get("place_type", [])
+            if "region" in place_type:
+                region = feature.get("text")
+            elif "country" in place_type:
+                country = feature.get("text")
+        
+        # Construct location name
+        if region and country:
+            location_name = f"{region}, {country}"
+        elif country:
+            location_name = country
+        else:
+            location_name = "Unknown Location"
+        
+        return {"location_name": location_name}
+        
+    except httpx.HTTPStatusError as e:
+        print(f"❌ Mapbox API error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch location data from Mapbox")
+    except Exception as e:
+        print(f"❌ Error in /api/location-name: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while fetching location name")
 
 # --- NEW: Orchestrator and Secure Trigger Endpoint ---
 

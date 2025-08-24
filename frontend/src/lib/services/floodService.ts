@@ -98,6 +98,10 @@ export interface AIInsightResponse {
   model: string;
 }
 
+export interface LocationNameResponse {
+  location_name: string;
+}
+
 export class FloodService {
   static async getFloodPoints(params: {
     limit?: number;
@@ -278,6 +282,20 @@ export class FloodService {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.detail || `Failed to generate AI insight`);
     }
+    return response.json();
+  }
+
+  static async getLocationName(lat: number, lon: number): Promise<LocationNameResponse> {
+    const searchParams = new URLSearchParams();
+    searchParams.append('lat', lat.toString());
+    searchParams.append('lon', lon.toString());
+
+    const response = await fetch(`${API_BASE_URL}/api/location-name?${searchParams}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch location name: ${response.statusText}`);
+    }
+    
     return response.json();
   }
 }
