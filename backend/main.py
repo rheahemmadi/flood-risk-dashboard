@@ -272,6 +272,51 @@ async def get_point_timeseries(
         print(f"Error in /api/flood-points/timeseries: {e}")
         raise HTTPException(status_code=500, detail="Error fetching point time series.")
 
+async def get_location_from_coordinates(lat: float, lon: float) -> str:
+    """Helper function to get location name from coordinates using Mapbox."""
+    if not MAPBOX_ACCESS_TOKEN:
+        return f"coordinates {lon:.4f}, {lat:.4f}"
+    
+    try:
+        # Call Mapbox reverse geocoding API
+        mapbox_url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{lon},{lat}.json"
+        params = {
+            "access_token": MAPBOX_ACCESS_TOKEN,
+            "types": "region,country"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(mapbox_url, params=params)
+            response.raise_for_status()
+            
+        data = response.json()
+        
+        if not data.get("features"):
+            return f"coordinates {lon:.4f}, {lat:.4f}"
+        
+        # Find region and country from features
+        region = None
+        country = None
+        
+        for feature in data["features"]:
+            place_type = feature.get("place_type", [])
+            if "region" in place_type:
+                region = feature.get("text")
+            elif "country" in place_type:
+                country = feature.get("text")
+        
+        # Construct location name
+        if region and country:
+            return f"{region}, {country}"
+        elif country:
+            return country
+        else:
+            return f"coordinates {lon:.4f}, {lat:.4f}"
+            
+    except Exception as e:
+        print(f"⚠️ Mapbox geocoding failed: {e}")
+        return f"coordinates {lon:.4f}, {lat:.4f}"
+
 @app.post("/api/generate-insight")
 async def generate_ai_insight(request: AIInsightRequest):
     print(f"🤖 AI Insight request received for {request.alert.location}")
@@ -286,15 +331,30 @@ async def generate_ai_insight(request: AIInsightRequest):
         raise HTTPException(status_code=400, detail="AI insights only available for 20-year return period alerts.")
     
     try:
+        # Get location name from coordinates using Mapbox
+        print("🗺️ Getting location name from coordinates...")
+        location_name = await get_location_from_coordinates(request.alert.latitude, request.alert.longitude)
+        print(f"📍 Location resolved to: {location_name}")
+        
         print("🔄 Calling Gemini API...")
         
-        # Create the prompt
+        # Create the prompt with real location name
         forecast_text = f"{request.alert.forecastValue:.2f}" if request.alert.forecastValue else "N/A"
-        prompt = f"""You are an emergency advisor. Based on these coordinates {request.alert.longitude:.4f}, {request.alert.latitude:.4f}, identify the country and create a critical flood warning.
+        prompt = f"""You are a senior emergency management advisor for an international aid organization. Your task is to analyze the following critical flood alert data and generate an urgent public safety warning.
 
-Data: 20-year return period flood, discharge {forecast_text} m³/s, forecast date {request.alert.date}
+**Alert Data:**
+- Location: {location_name}
+- Severity: Exceeds 20-year return period
+- Forecasted Discharge: {request.alert.forecastValue:.2f} m³/s
+- Forecast Valid For Date: {request.alert.date}
 
-Write exactly 2-3 sentences: First sentence identifies the country and flood severity, second sentence describes the potential impact, third sentence provides immediate action. Keep timing vague and focus on urgency."""
+**Instructions:**
+Your response MUST be exactly three sentences.
+1.  **Sentence 1:** Immediately state the location and the critical severity of the flood threat.
+2.  **Sentence 2:** Describe the potential impacts, considering the time of year for the location (e.g., monsoon season, spring thaw) to add specific context.
+3.  **Sentence 3:** Provide a clear, immediate, and actionable instruction for the public.
+
+The tone must be urgent and authoritative. Generate the warning now:"""
 
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
