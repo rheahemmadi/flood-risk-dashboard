@@ -8,7 +8,7 @@ MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 DB_NAME = os.getenv("MONGO_DB_NAME", "flood_risk")
 
 def connect_to_mongo():
-    connect(db=DB_NAME, host=MONGO_URI)
+     connect(db=DB_NAME, host=MONGO_URI, uuidRepresentation='standard')
 
 def disconnect_from_mongo():
     disconnect() 

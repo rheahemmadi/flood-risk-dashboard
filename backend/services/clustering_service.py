@@ -13,22 +13,6 @@ class GeohashClusteringService:
         2: 3,   # Large region level (~1250km)
         3: 4,   # State level (~156km)
         4: 5,   # Large city level (~156km)
-        # 5: 4,   # City level (~19.5km)
-        # 6: 4,   # District level (~19.5km)
-        # 7: 5,   # Neighborhood level (~2.4km)
-        # 8: 5,   # Street level (~2.4km)
-        # 9: 6,   # Block level (~610m)
-        # 10: 6,  # Building level (~610m)
-        # 11: 7,  # Building level (~76m)
-        # 12: 7,  # Building level (~76m)
-        # 13: 8,  # Building level (~9.5m)
-        # 14: 8,  # Building level (~9.5m)
-        # 15: 9,  # Building level (~1.2m)
-        # 16: 9,  # Building level (~1.2m)
-        # 17: 10, # Building level (~15cm)
-        # 18: 10, # Building level (~15cm)
-        # 19: 11, # Building level (~2cm)
-        # 20: 11, # Building level (~2cm)
     }
     
     # Risk level thresholds
