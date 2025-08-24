@@ -109,3 +109,16 @@ __pycache__/
 
 # Data files
 *.nc
+
+# Testing artifacts
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Jest
+coverage/
+*.lcov
+
+# TypeScript build info
+tsconfig.tsbuildinfo
