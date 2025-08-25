@@ -1,7 +1,5 @@
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from services.clustering_service import GeohashClusteringService
-from schemas.significant_flood_point import SignificantFloodPoint, FloodCluster
 
 
 class TestGeohashClusteringServiceComprehensive:
