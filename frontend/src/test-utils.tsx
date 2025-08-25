@@ -1,13 +1,11 @@
 import React, { ReactElement } from 'react'
 import { render, RenderOptions } from '@testing-library/react'
-import { Toaster } from './components/ui/sonner'
 
 // Custom render function that includes providers
 const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
   return (
     <>
       {children}
-      <Toaster />
     </>
   )
 }
@@ -35,12 +33,12 @@ export const mockFloodAlert = {
   date: '2024-01-16',
   riskLevel: 'high' as const,
   riverName: 'Thames',
-  segmentId: 'thames_001',
   latitude: 51.5074,
   longitude: -0.1278,
   forecastValue: 0.85,
   location: 'London, United Kingdom',
   returnPeriod: '20-year' as const,
+  trend: 'stable' as const,
 }
 
 export const mockLocationSearchResult = {
@@ -51,15 +49,10 @@ export const mockLocationSearchResult = {
 }
 
 // Helper function to create mock API responses
-export const createMockApiResponse = <T>(data: T, delay = 0) => {
+export const createMockApiResponse = <T,>(data: T, delay = 0) => {
   return new Promise<T>((resolve) => {
     setTimeout(() => resolve(data), delay)
   })
 }
 
-// Helper function to create mock API errors
-export const createMockApiError = (message = 'API Error', delay = 0) => {
-  return new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error(message)), delay)
-  })
-}
+

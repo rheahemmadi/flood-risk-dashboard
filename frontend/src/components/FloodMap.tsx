@@ -3,29 +3,23 @@
 import React, { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import Map, { Marker, Popup, NavigationControl, FullscreenControl, Source, Layer } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { FloodAlert, FloodPoint, FloodSegment } from '@/lib/types/flood';
+import { FloodAlert, FloodSegment } from '@/lib/types/flood';
 import { FloodService, FloodCluster } from '@/lib/services/floodService';
 import { fetchFloodClustersForViewport } from '@/lib/data/floodData';
-import { MAPBOX_CONFIG, getMarkerColor, getMarkerSize, getFloodPointSize } from '@/lib/config/mapbox';
+import { MAPBOX_CONFIG, getMarkerColor, getFloodPointSize } from '@/lib/config/mapbox';
 import { AlertTriangle } from 'lucide-react';
-import { SearchSuggestion, flyToLocation } from '@/lib/utils/search';
 
 interface FloodMapProps {
-  alerts: FloodAlert[];
   onAlertClick: (alert: FloodAlert) => void;
   selectedDate: string;
   riskFilter: string[];
-  searchQuery?: string;
-  floodPoints?: FloodPoint[];
   floodSegments?: FloodSegment[];
 }
 
 const FloodMap = forwardRef<any, FloodMapProps>(({ 
-  alerts, 
   onAlertClick, 
   selectedDate, 
   riskFilter, 
-  searchQuery,
   floodSegments = []
 }, ref) => {
   const [popupInfo, setPopupInfo] = useState<FloodAlert | null>(null);
@@ -167,24 +161,9 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
   //   }
   // }, [floodClusters]);
 
-  // Helper function to calculate bounds from clusters
-  const getDataBounds = (clusters: FloodCluster[]) => {
-    if (clusters.length === 0) return null;
-    
-    const lats = clusters.map(c => c.lat);
-    const lngs = clusters.map(c => c.lon);
-    
-    return [
-      [Math.min(...lngs), Math.min(...lats)], // Southwest
-      [Math.max(...lngs), Math.max(...lats)]  // Northeast
-    ];
-  };
 
-  // Filter alerts based on selected filters
-  const filteredAlerts = alerts.filter(alert => 
-    riskFilter.includes(alert.riskLevel) && 
-    alert.date === selectedDate
-  );
+
+
 
   // Filter flood segments based on risk filter
   const filteredFloodSegments = floodSegments.filter(segment => 
@@ -303,13 +282,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
     setPopupInfo(null);
   }, []);
 
-  const handleLocationSelect = useCallback((suggestion: SearchSuggestion) => {
-    flyToLocation(mapRef, suggestion.center, suggestion.bbox);
-  }, []);
 
-  const handleSearchChange = useCallback((query: string) => {
-    // This will be connected to the header search if needed
-  }, []);
 
   // Handle cluster click
   const handleClusterClick = useCallback((event: any) => {

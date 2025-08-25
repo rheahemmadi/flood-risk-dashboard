@@ -1,7 +1,7 @@
 import { render, screen, waitFor, fireEvent } from '../../test-utils'
 import AlertInfoPanel from '../AlertInfoPanel'
 import { FloodService } from '../../lib/services/floodService'
-import { mockFloodAlert, createMockApiResponse, createMockApiError } from '../../test-utils'
+import { mockFloodAlert, createMockApiResponse } from '../../test-utils'
 
 // Mock the FloodService
 jest.mock('../../lib/services/floodService', () => ({
@@ -28,7 +28,7 @@ describe('AlertInfoPanel', () => {
 
   it('renders nothing when alert is null', () => {
     const { container } = render(<AlertInfoPanel alert={null} onClose={mockOnClose} />)
-    // The component returns null when alert is null, but the test wrapper includes the Toaster
+    // The component returns null when alert is null
     // So we check that the main alert panel is not rendered
     expect(container.querySelector('[class*="absolute top-0 right-0"]')).toBeNull()
   })

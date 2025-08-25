@@ -36,19 +36,7 @@ export const getMarkerColor = (riskLevel: string): string => {
   }
 };
 
-// Helper function to get marker size based on risk level
-export const getMarkerSize = (riskLevel: string): number => {
-  switch (riskLevel) {
-    case 'high':
-      return 20; // Much larger for 5km areas
-    case 'medium':
-      return 16; // Larger for medium risk
-    case 'low':
-      return 12; // Larger for low risk
-    default:
-      return 12;
-  }
-};
+
 
 // Helper function to get flood point marker size (for 5km areas)
 export const getFloodPointSize = (riskLevel: string): number => {
