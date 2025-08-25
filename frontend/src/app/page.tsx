@@ -1,22 +1,16 @@
 'use client'
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import FloodMap from '@/components/FloodMap';
 import DashboardHeader from '@/components/DashboardHeader';
 import AlertInfoPanel from '@/components/AlertInfoPanel';
 import { FloodAlert } from '@/lib/types/flood';
 import { SearchSuggestion, flyToLocation } from '@/lib/utils/search';
 
-// CHANGE: Import the FloodService directly.
+
 import { FloodService } from '@/lib/services/floodService';
 
-// CHANGE: The old helper functions from floodData are no longer needed.
-// import { 
-//   fetchFloodPoints, 
-//   fetchFloodPointsByDate, 
-//   getAvailableDates, 
-//   getAlertCounts 
-// } from '@/lib/data/floodData';
+
 
 const Index = () => {
   const [selectedAlert, setSelectedAlert] = useState<FloodAlert | null>(null);
@@ -28,19 +22,17 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const mapRef = useRef<any>(null);
 
-  // CHANGE: This single useEffect now handles all initial data loading.
-  // It makes one efficient call to the backend summary endpoint.
   useEffect(() => {
     const loadInitialData = async () => {
       try {
         setLoading(true);
         
-        // Fetch dates list first
+        // Fetch dates first
         const summaryAll = await FloodService.getFloodPointsSummary();
         const dates = summaryAll.unique_dates || [];
         setAvailableDates(dates);
         
-        // Automatically select the first available date and fetch its counts
+        // Select the first available date and fetch its counts
         if (dates.length > 0) {
           setSelectedDate(dates[0]);
           const summaryForFirst = await FloodService.getFloodPointsSummary(dates[0]);
@@ -63,9 +55,9 @@ const Index = () => {
     };
 
     loadInitialData();
-  }, []); // The empty array [] ensures this runs only once when the page loads.
+  }, []);
 
-  // Update alert counts whenever the selected date changes
+  // Update alert counts when the date changes
   useEffect(() => {
     const loadCountsForDate = async () => {
       if (!selectedDate) return;
@@ -84,10 +76,6 @@ const Index = () => {
     };
     loadCountsForDate();
   }, [selectedDate]);
-
-  // CHANGE: The other useEffect hooks that fetched data are no longer needed
-  // because the FloodMap component now handles its own data fetching based on
-  // the 'selectedDate' and 'riskFilter' props passed to it.
 
   const handleAlertClick = (alert: FloodAlert) => {
     setSelectedAlert(alert);
@@ -114,7 +102,7 @@ const Index = () => {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Header receives the data fetched above */}
+      {/* Header receives the data */}
       <DashboardHeader
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -129,19 +117,15 @@ const Index = () => {
 
       {/* Main Content */}
       <div className="flex-1 relative">
-        {/* CHANGE: The FloodMap component is now self-sufficient. 
-          It only needs the selectedDate and riskFilter to fetch its own map points and clusters.
-          We no longer need to pass down 'alerts' or 'floodPoints' from here.
-        */}
+        {/* FloodMap receives the data */}
         <FloodMap
           ref={mapRef}
-          alerts={[]} // The map component will handle its own popups from fetched data
           onAlertClick={handleAlertClick}
           selectedDate={selectedDate}
           riskFilter={riskFilter}
         />
 
-        {/* Info Panel logic remains the same */}
+        {/* Info Panel*/}
         {selectedAlert && (
           <AlertInfoPanel
             alert={selectedAlert}

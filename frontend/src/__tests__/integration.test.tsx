@@ -42,15 +42,11 @@ const mockSuggestions = [
 // Mock flood alert data
 const mockFloodAlert = {
   id: 'test-alert-1',
-  coordinates: { lat: 51.5074, lng: -0.1278 },
-  riskLevel: 'red' as const,
+  riskLevel: 'high' as const,
   returnPeriod: '20-year',
-  forecastDate: '2024-01-16',
   riverName: 'Thames',
   location: 'London, United Kingdom',
   trend: 'rising' as const,
-  dischargeValue: 0.85,
-  thresholdValue: 0.5,
   date: '2024-01-16',
   forecastValue: 0.85,
   latitude: 51.5074,
