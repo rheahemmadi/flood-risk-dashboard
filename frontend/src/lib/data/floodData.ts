@@ -1,4 +1,4 @@
-import { FloodService, FloodCluster, ViewportBounds } from '@/lib/services/floodService';
+import { FloodService, FloodPoint, FloodPointsSummary, ViewportBounds, FloodCluster } from '@/lib/services/floodService';
 
 // Quantization utilities for map bounds
 const quantizeBounds = (bounds: ViewportBounds, zoomLevel?: number): ViewportBounds => {
@@ -40,142 +40,252 @@ const boundsOverlapSignificantly = (bounds1: ViewportBounds, bounds2: ViewportBo
   const overlapEast = Math.min(bounds1.east, bounds2.east);
   const overlapWest = Math.max(bounds1.west, bounds2.west);
 
-  // Check if there's actually an overlap
   if (overlapNorth <= overlapSouth || overlapEast <= overlapWest) {
-    return false;
+    return false; // No overlap
   }
 
-  // Calculate overlap area
   const overlapArea = (overlapNorth - overlapSouth) * (overlapEast - overlapWest);
+  const bounds1Area = (bounds1.north - bounds1.south) * (bounds1.east - bounds1.west);
+  const bounds2Area = (bounds2.north - bounds2.south) * (bounds2.east - bounds2.west);
   
-  // Calculate areas of both bounds
-  const area1 = (bounds1.north - bounds1.south) * (bounds1.east - bounds1.west);
-  const area2 = (bounds2.north - bounds2.south) * (bounds2.east - bounds2.west);
+  const overlapRatio1 = overlapArea / bounds1Area;
+  const overlapRatio2 = overlapArea / bounds2Area;
   
-  // Check if overlap is >50% of either area
-  return overlapArea > 0.5 * Math.min(area1, area2);
+  return Math.max(overlapRatio1, overlapRatio2) > 0.5; // 50% overlap threshold
 };
 
-// Simple cache implementation
-class SimpleCache<T> {
-  private cache = new Map<string, { data: T; timestamp: number }>();
-  private maxAge = 5 * 60 * 1000; // 5 minutes
-  private maxSize = 50; // Maximum number of cached items
+// LRU Cache implementation with hierarchical zoom-out support
+class LRUCache<T> {
+  private capacity: number;
+  private cache: Map<string, { value: T; timestamp: number; metadata?: any }>;
 
-  get(key: string): T | null {
-    const entry = this.cache.get(key);
-    if (!entry) return null;
-    
-    // Check if expired
-    if (Date.now() - entry.timestamp > this.maxAge) {
-      this.cache.delete(key);
-      return null;
-    }
-    
-    return entry.data;
+  constructor(capacity: number = 50) {
+    this.capacity = capacity;
+    this.cache = new Map();
   }
 
-  set(key: string, data: T): void {
-    // If cache is full, remove oldest entry
-    if (this.cache.size >= this.maxSize) {
+  private generateKey(method: string, params: any): string {
+    // Create a stable cache key from method name and parameters
+    const paramsObj = params || {};
+    
+    // Quantize bounds if present to create cache buckets
+    const processedParams = { ...paramsObj };
+    if (processedParams.bounds) {
+      processedParams.bounds = quantizeBounds(
+        processedParams.bounds, 
+        processedParams.zoomLevel
+      );
+    }
+    
+    // Create a stable string representation
+    const keys = Object.keys(processedParams).sort();
+    const sortedData: Record<string, any> = {};
+    keys.forEach(key => {
+      sortedData[key] = processedParams[key];
+    });
+    return `${method}:${JSON.stringify(sortedData)}`;
+  }
+
+  get(method: string, params: any): T | null {
+    const key = this.generateKey(method, params);
+    const cached = this.cache.get(key);
+    
+    if (cached) {
+      // Move to end (most recently used)
+      this.cache.delete(key);
+      this.cache.set(key, { ...cached, timestamp: Date.now() });
+      return cached.value;
+    }
+    
+    // If no exact match and this is a viewport-based request, try hierarchical lookup
+    if (params.bounds && params.zoomLevel !== undefined) {
+      return this.findHierarchicalMatch(method, params);
+    }
+    
+    return null;
+  }
+
+  private findHierarchicalMatch(method: string, params: any): T | null {
+    const targetBounds = params.bounds;
+    const targetZoom = params.zoomLevel;
+    
+    // Look for cached data that might be suitable for zoom-out scenarios
+    for (const [cachedKey, cachedEntry] of this.cache.entries()) {
+      if (!cachedKey.startsWith(`${method}:`)) continue;
+      
+      const cachedMetadata = cachedEntry.metadata;
+      if (!cachedMetadata || !cachedMetadata.bounds || cachedMetadata.zoomLevel === undefined) continue;
+      
+      const cachedBounds = cachedMetadata.bounds;
+      const cachedZoom = cachedMetadata.zoomLevel;
+      
+      // For zoom-out: Check if cached data from higher zoom can be used
+      // We want cached data that overlaps significantly with our target area
+      if (cachedZoom > targetZoom && boundsOverlapSignificantly(targetBounds, cachedBounds)) {
+        // Move to end (mark as recently used)
+        this.cache.delete(cachedKey);
+        this.cache.set(cachedKey, { ...cachedEntry, timestamp: Date.now() });
+        return cachedEntry.value;
+      }
+      
+      // For zoom-in: Check if we have data for a larger area that contains our target
+      if (cachedZoom < targetZoom && boundsContains(cachedBounds, targetBounds)) {
+        // Move to end (mark as recently used)
+        this.cache.delete(cachedKey);
+        this.cache.set(cachedKey, { ...cachedEntry, timestamp: Date.now() });
+        return cachedEntry.value;
+      }
+    }
+    
+    return null;
+  }
+
+  set(method: string, params: any, value: T): void {
+    const key = this.generateKey(method, params);
+    
+    // Remove oldest entries if at capacity
+    if (this.cache.size >= this.capacity && !this.cache.has(key)) {
       const firstKey = this.cache.keys().next().value;
-      if (firstKey !== undefined) {
+      if (firstKey) {
         this.cache.delete(firstKey);
       }
     }
     
-    this.cache.set(key, { data, timestamp: Date.now() });
+    // Store metadata for hierarchical lookups
+    const metadata = params.bounds ? {
+      bounds: params.bounds, // Store original bounds, not quantized
+      zoomLevel: params.zoomLevel,
+      time: params.time
+    } : undefined;
+    
+    this.cache.set(key, { value, timestamp: Date.now(), metadata });
   }
 
   clear(): void {
     this.cache.clear();
   }
-}
 
-// Create cache instance
-const floodDataCache = new SimpleCache<any>();
-
-// Generic cached fetch function
-async function cachedFetch<T>(
-  cache: SimpleCache<T>,
-  operation: string,
-  params: Record<string, any>,
-  fetchFn: () => Promise<T>
-): Promise<T> {
-  // Create cache key from operation and params
-  const processedParams = { ...params };
-  
-  // Quantize bounds if present for better cache hits
-  if (processedParams.bounds && processedParams.zoomLevel) {
-    processedParams.bounds = quantizeBounds(
-      processedParams.bounds as ViewportBounds, 
-      processedParams.zoomLevel as number
-    );
-  }
-  
-  const cacheKey = `${operation}:${JSON.stringify(processedParams)}`;
-  
-  // Try to get from cache first
-  const cached = cache.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-  
-  // Enhanced cache lookup for viewport-based queries
-  if (operation.includes('Viewport') && processedParams.bounds && processedParams.zoomLevel) {
-    const targetBounds = processedParams.bounds as ViewportBounds;
-    const targetZoom = processedParams.zoomLevel as number;
-    
-    // Look for cached data that could satisfy this request
-    for (const [key, entry] of (cache as any).cache.entries()) {
-      if (!key.startsWith(operation)) continue;
-      
-      try {
-        const keyParts = key.split(':');
-        if (keyParts.length < 2) continue;
-        const cachedParams = JSON.parse(keyParts[1]);
-        if (!cachedParams.bounds || !cachedParams.zoomLevel) continue;
-        
-        const cachedBounds = cachedParams.bounds as ViewportBounds;
-        const cachedZoom = cachedParams.zoomLevel as number;
-        
-        // If cached data has higher zoom level and overlaps significantly, we can use it
-        if (cachedZoom > targetZoom && boundsOverlapSignificantly(targetBounds, cachedBounds)) {
-          console.log('Cache hit: Using higher zoom data for lower zoom request');
-          return entry.data;
-        }
-        
-        // If cached data has lower zoom level and contains our bounds, we can use it
-        if (cachedZoom < targetZoom && boundsContains(cachedBounds, targetBounds)) {
-          console.log('Cache hit: Using lower zoom data for higher zoom request');
-          return entry.data;
-        }
-      } catch (e) {
-        // Skip malformed cache entries
-        continue;
+  // Clean entries older than maxAge (in milliseconds)
+  cleanup(maxAge: number = 5 * 60 * 1000): void { // Default 5 minutes
+    const now = Date.now();
+    for (const [key, cached] of this.cache.entries()) {
+      if (now - cached.timestamp > maxAge) {
+        this.cache.delete(key);
       }
     }
   }
-  
-  // Fetch fresh data
-  const data = await fetchFn();
-  cache.set(cacheKey, data);
-  return data;
+
+  getStats() {
+    return {
+      size: this.cache.size,
+      capacity: this.capacity,
+      keys: Array.from(this.cache.keys())
+    };
+  }
 }
 
-// Convert FloodCluster to frontend format
+// Global cache instances
+const floodDataCache = new LRUCache<any>(100); // Larger cache for map data
+const summaryCache = new LRUCache<any>(10);   // Smaller cache for summary data
+
+// Cache cleanup interval (every 5 minutes)
+if (typeof window !== 'undefined') {
+  setInterval(() => {
+    floodDataCache.cleanup();
+    summaryCache.cleanup();
+  }, 5 * 60 * 1000);
+}
+
+// Generic cached fetch wrapper
+async function cachedFetch<T>(
+  cache: LRUCache<T>,
+  method: string,
+  params: any,
+  fetchFn: () => Promise<T>
+): Promise<T> {
+  // Try to get from cache first
+  const cached = cache.get(method, params);
+  if (cached) {
+    console.log(`Cache HIT for ${method}:`, params);
+    return cached;
+  }
+
+  console.log(`Cache MISS for ${method}:`, params);
+  // Fetch and cache the result
+  try {
+    console.log(`Making API call for ${method}...`);
+    const result = await fetchFn();
+    console.log(`API call successful for ${method}, caching result`);
+    cache.set(method, params, result);
+    return result;
+  } catch (error) {
+    console.error(`Error fetching ${method}:`, error);
+    throw error;
+  }
+}
+
+// Convert backend flood points to frontend format
+export const convertToFloodPoint = (point: FloodPoint) => ({
+  id: point.id,
+  latitude: point.lat,
+  longitude: point.lon,
+  riskLevel: getRiskLevel(point.forecast_value),
+  riverName: `Flood Point ${point.id}`,
+  segmentId: `segment-${point.id}`
+});
+
+// Convert backend flood clusters to frontend format
 export const convertToFloodCluster = (cluster: FloodCluster) => ({
   id: cluster.id,
+  zoom_level: cluster.zoom_level,
+  geohash: cluster.geohash,
   lat: cluster.lat,
   lon: cluster.lon,
-  count: cluster.point_count,
-  risk_level: cluster.risk_level,
+  time: cluster.time,
+  point_count: cluster.point_count,
   avg_forecast: cluster.avg_forecast,
   max_forecast: cluster.max_forecast,
   min_forecast: cluster.min_forecast,
-  zoom_level: cluster.zoom_level,
-  time: cluster.time
+  risk_level: cluster.risk_level
 });
+
+// Determine risk level based on forecast value
+const getRiskLevel = (forecastValue: number): 'high' | 'medium' | 'low' => {
+  if (forecastValue >= 5.0) return 'high';
+  if (forecastValue >= 2.0) return 'medium';
+  return 'low';
+};
+
+// Cached fetch flood points from backend
+export const fetchFloodPoints = async (limit: number = 1000) => {
+  return cachedFetch(
+    floodDataCache,
+    'fetchFloodPoints',
+    { limit },
+    async () => {
+      const response = await FloodService.getFloodPoints({ limit });
+      return response.points.map(convertToFloodPoint);
+    }
+  );
+};
+
+// Cached fetch flood points with viewport bounds
+export const fetchFloodPointsForViewport = async (
+  bounds: ViewportBounds,
+  limit: number = 1000,
+  time?: string,
+  zoomLevel?: number
+) => {
+  return cachedFetch(
+    floodDataCache,
+    'fetchFloodPointsForViewport',
+    { bounds, limit, time, zoomLevel },
+    async () => {
+      const response = await FloodService.getFloodPoints({ bounds, limit, time });
+      return response.points.map(convertToFloodPoint);
+    }
+  );
+};
 
 // Cached fetch flood clusters for viewport
 export const fetchFloodClustersForViewport = async (
@@ -199,3 +309,142 @@ export const fetchFloodClustersForViewport = async (
     }
   );
 };
+
+// Cached fetch flood points summary
+export const fetchFloodPointsSummary = async (): Promise<FloodPointsSummary | null> => {
+  return cachedFetch(
+    summaryCache,
+    'fetchFloodPointsSummary',
+    {},
+    async () => {
+      return await FloodService.getFloodPointsSummary();
+    }
+  );
+};
+
+// Cached fetch flood points by date
+export const fetchFloodPointsByDate = async (date: string, limit: number = 1000) => {
+  return cachedFetch(
+    floodDataCache,
+    'fetchFloodPointsByDate',
+    { date, limit },
+    async () => {
+      const points = await FloodService.getFloodPointsByDate(date, limit);
+      return points.map(convertToFloodPoint);
+    }
+  );
+};
+
+// Cached fetch high-risk flood points
+export const fetchHighRiskFloodPoints = async (threshold: number = 5.0, limit: number = 1000) => {
+  return cachedFetch(
+    floodDataCache,
+    'fetchHighRiskFloodPoints',
+    { threshold, limit },
+    async () => {
+      const points = await FloodService.getHighRiskPoints(threshold, limit);
+      return points.map(convertToFloodPoint);
+    }
+  );
+};
+
+// Cached fetch high-risk flood points for viewport
+export const fetchHighRiskFloodPointsForViewport = async (
+  bounds: ViewportBounds,
+  threshold: number = 5.0,
+  limit: number = 1000,
+  time?: string,
+  zoomLevel?: number
+) => {
+  return cachedFetch(
+    floodDataCache,
+    'fetchHighRiskFloodPointsForViewport',
+    { bounds, threshold, limit, time, zoomLevel },
+    async () => {
+      const response = await FloodService.getFloodPoints({ 
+        bounds, 
+        limit, 
+        time, 
+        min_forecast: threshold 
+      });
+      return response.points.map(convertToFloodPoint);
+    }
+  );
+};
+
+// Get available dates from summary (cached)
+export const getAvailableDates = async (): Promise<string[]> => {
+  try {
+    const summary = await fetchFloodPointsSummary();
+    return summary?.unique_dates || [];
+  } catch (error) {
+    console.error('Error fetching available dates:', error);
+    return [];
+  }
+};
+
+// Get alert counts for a specific date (cached)
+export const getAlertCounts = async (selectedDate: string) => {
+  return cachedFetch(
+    summaryCache, // Use the separate summaryCache
+    'getAlertCounts',
+    { selectedDate }, // Cache key
+    async () => {
+      // Fetch the true summary from the backend
+      const summary = await FloodService.getFloodPointsSummary();
+      const breakdown = summary?.risk_breakdown || {};
+
+      // --- NEW: Map the return periods to risk levels ---
+      return {
+        high: breakdown['20-year'] || 0,
+        medium: breakdown['5-year'] || 0,
+        low: breakdown['2-year'] || 0,
+      };
+    }
+  );
+};
+// export const getAlertCounts = async (selectedDate: string) => {
+//   return cachedFetch(
+//     floodDataCache,
+//     'getAlertCounts',
+//     { selectedDate },
+//     async () => {
+//       const points = await fetchFloodPointsByDate(selectedDate);
+      
+//       return {
+//         high: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'high').length,
+//         medium: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'medium').length,
+//         low: points.filter((point: ConvertedFloodPoint) => point.riskLevel === 'low').length
+//       };
+//     }
+//   );
+// };
+
+// Cache management utilities
+export const cacheUtils = {
+  // Clear all caches
+  clearAll: () => {
+    floodDataCache.clear();
+    summaryCache.clear();
+  },
+  
+  // Clear only flood data cache (keep summary cache)
+  clearFloodData: () => {
+    floodDataCache.clear();
+  },
+  
+  // Get cache statistics
+  getStats: () => ({
+    floodData: floodDataCache.getStats(),
+    summary: summaryCache.getStats()
+  }),
+  
+  // Manual cleanup of old entries
+  cleanup: () => {
+    floodDataCache.cleanup();
+    summaryCache.cleanup();
+  }
+};
+
+// Export for debugging purposes
+export { floodDataCache, summaryCache }; 
