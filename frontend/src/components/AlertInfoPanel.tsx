@@ -166,7 +166,7 @@ const AlertInfoPanel = ({ alert, onClose }: AlertInfoPanelProps) => {
                   <span className="text-xs sm:text-sm">{alert.latitude.toFixed(4)}, {alert.longitude.toFixed(4)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Forecasted Discharge (m/s):</span>
+                  <span className="text-muted-foreground">Forecasted Discharge (m³/s):</span>
                   <span className="text-xs sm:text-sm">{alert.forecastValue?.toFixed(2)}</span>
                 </div>
             </div>
