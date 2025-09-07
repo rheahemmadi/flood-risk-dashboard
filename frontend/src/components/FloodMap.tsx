@@ -42,9 +42,9 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
 
   // Fetch clustered flood data when viewport or filters change
   const fetchClusters = useCallback(async (force = false) => {
-    console.log('fetchClusters called with force:', force, 'selectedDate:', selectedDate);
+    // console.log('fetchClusters called with force:', force, 'selectedDate:', selectedDate);
     if (!mapRef.current) {
-      console.log('No map ref, returning early');
+      // console.log('No map ref, returning early');
       return;
     }
     
@@ -54,18 +54,18 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
     
     // Create a unique key for this fetch request
     const fetchKey = `${zoom}-${selectedDate}-${riskFilter.join(',')}-${bounds.getNorth().toFixed(2)}-${bounds.getSouth().toFixed(2)}-${bounds.getEast().toFixed(2)}-${bounds.getWest().toFixed(2)}`;
-    console.log('Fetch key:', fetchKey);
-    console.log('Last fetch params:', lastFetchParams);
+    // console.log('Fetch key:', fetchKey);
+    // console.log('Last fetch params:', lastFetchParams);
 
     // Skip if we've already fetched this exact data (unless forced)
     if (!force && fetchKey === lastFetchParams) {
-      console.log('Skipping fetch - same data already fetched');
+      // console.log('Skipping fetch - same data already fetched');
       return;
     }
     
     setLoading(true);
     try {
-      console.log("zoom level", map.getZoom());
+      // console.log("zoom level", map.getZoom());
       
       const clusters = await fetchFloodClustersForViewport(
         zoom,
@@ -108,7 +108,7 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
     
     setLoadingPoints(true);
     try {
-      console.log('Fetching viewport points for zoom:', viewState.zoom);
+      // console.log('Fetching viewport points for zoom:', viewState.zoom);
       const pointData = await FloodService.getFloodPoints({
         limit: 2000,
         time: selectedDate,
@@ -120,11 +120,11 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
         }
       });
       
-      console.log('Received viewport points:', pointData.points.length);
+      // console.log('Received viewport points:', pointData.points.length);
       setViewportFloodPoints(pointData.points);
       setLastPointFetchParams(fetchKey);
     } catch (error) {
-      console.error('Error fetching viewport points:', error);
+      // console.error('Error fetching viewport points:', error);
     } finally {
       setLoadingPoints(false);
     }
@@ -132,37 +132,21 @@ const FloodMap = forwardRef<any, FloodMapProps>(({
 
   // Force refresh viewport points when filters or date change
   useEffect(() => {
-    console.log('Date/Risk filter changed for viewport points - selectedDate:', selectedDate, 'zoom:', viewState.zoom);
+    // console.log('Date/Risk filter changed for viewport points - selectedDate:', selectedDate, 'zoom:', viewState.zoom);
     if (isClient && viewState.zoom > 9) {
-      console.log('Triggering viewport points fetch due to date/risk change');
+      // console.log('Triggering viewport points fetch due to date/risk change');
       fetchViewportPoints(true);
     }
   }, [selectedDate, riskFilter, isClient]); // Removed fetchViewportPoints from dependencies
 
   // Fetch clusters when dependencies change
   useEffect(() => {
-    console.log('Date/Risk filter changed - selectedDate:', selectedDate, 'riskFilter:', riskFilter);
+    // console.log('Date/Risk filter changed - selectedDate:', selectedDate, 'riskFilter:', riskFilter);
     if (isClient) {
-      console.log('Triggering cluster fetch due to date/risk change');
+      // console.log('Triggering cluster fetch due to date/risk change');
       fetchClusters(true); // Force fetch when filters change
     }
   }, [selectedDate, riskFilter, isClient]);
-
-  // Auto-center map only on initial load (commented out to prevent continuous movement)
-  // useEffect(() => {
-  //   if (floodClusters.length > 0 && mapRef.current) {
-  //     const bounds = getDataBounds(floodClusters);
-  //     if (bounds) {
-  //       mapRef.current.fitBounds(bounds, {
-  //         padding: 50,
-  //         duration: 1000
-  //       });
-  //     }
-  //   }
-  // }, [floodClusters]);
-
-
-
 
 
   // Filter flood segments based on risk filter
