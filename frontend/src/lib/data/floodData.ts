@@ -206,20 +206,20 @@ async function cachedFetch<T>(
   // Try to get from cache first
   const cached = cache.get(method, params);
   if (cached) {
-    console.log(`Cache HIT for ${method}:`, params);
+   // console.log(`Cache HIT for ${method}:`, params);
     return cached;
   }
 
-  console.log(`Cache MISS for ${method}:`, params);
+  // console.log(`Cache MISS for ${method}:`, params);
   // Fetch and cache the result
   try {
-    console.log(`Making API call for ${method}...`);
+    // console.log(`Making API call for ${method}...`);
     const result = await fetchFn();
-    console.log(`API call successful for ${method}, caching result`);
+    // console.log(`API call successful for ${method}, caching result`);
     cache.set(method, params, result);
     return result;
   } catch (error) {
-    console.error(`Error fetching ${method}:`, error);
+    // console.error(`Error fetching ${method}:`, error);
     throw error;
   }
 }
